@@ -27,10 +27,10 @@
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
     (setf (bukva app) "Б")    
   (run app)
-  (setf *population* (initialize-population population-size chromosome-length))
   ;; initialization
+  (setf *population* (initialize-population population-size chromosome-length))
+  ;; evaluation
   ;; selection
-  ;; check fitness
   ;; crossover
   ;; mutation
 ))
@@ -43,7 +43,7 @@
   "Chromosome length is the number of contours for a character, mutiply by three for each control point"
   ;;todo no magick numbers
   (let ((chromosome 0))
-    (loop for i below (- chromosome-length 3) by 3
+    (loop for i below (* chromosome-length 3) by 3
        do (setf chromosome (dpb (random 10000) (byte 10 (* 10 i)) chromosome)) ;;todo use bounds
 	 (setf chromosome (dpb (random 10000) (byte 10 (* 10 (+ i 1))) chromosome)) ;;todo add a zero with some probability
 	 (setf chromosome (dpb (random 10000) (byte 10 (* 10 (+ i 2))) chromosome)))
