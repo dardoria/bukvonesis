@@ -3,10 +3,12 @@
 (in-package :bukvonesis)
 
 (defparameter *population* '())
+(defparameter *allele-size* 10)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
-   (bukva :accessor bukva)))
+   (bukva :accessor bukva)
+   (candidate :accessor candidate)))
 
 (defmethod setup ((app font-app))
   (set-background 0.25 0.63 0.54))
@@ -33,6 +35,7 @@
   ;; selection
   ;; crossover
   ;; mutation
+  (setf (candidate app) (chromosome->coordinates (first *population*)))
 ))
 
 (defun initialize-population (population-size chromosome-length)
@@ -40,11 +43,20 @@
      collect (make-chromosome chromosome-length)))
 
 (defun make-chromosome (chromosome-length)
-  "Chromosome length is the number of contours for a character, mutiply by three for each control point"
+  "Chromosome length is the number of contours for a character, mutiply by three for each contour."
   ;;todo no magick numbers
+  ;;todo this creates only one coordinate per control point
   (let ((chromosome 0))
     (loop for i below (* chromosome-length 3) by 3
-       do (setf chromosome (dpb (random 10000) (byte 10 (* 10 i)) chromosome)) ;;todo use bounds
-	 (setf chromosome (dpb (random 10000) (byte 10 (* 10 (+ i 1))) chromosome)) ;;todo add a zero with some probability
-	 (setf chromosome (dpb (random 10000) (byte 10 (* 10 (+ i 2))) chromosome)))
+       do (loop for k below 3
+	     do (setf chromosome (dpb (random 10000) (byte *allele-size* (* *allele-size* (+ k i))) chromosome))))
     chromosome))
+
+(defun chromosome->coordinates (chromosome)
+  (let* ((contour-count (/ (ceiling (/ (integer-length chromosome) *allele-size*)) 3))
+	 (contours (make-array contour-count)))
+    (loop for i below contour-count
+       do (setf (aref contours i)
+		(loop for k below 3
+		   collect (ldb (byte *allele-size* (* *allele-size* (+ i k))) chromosome))))
+    contours))
