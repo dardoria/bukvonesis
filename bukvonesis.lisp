@@ -48,23 +48,29 @@
   (loop repeat population-size
      collect (make-chromosome chromosome-length)))
 
-(defun make-chromosome (chromosome-length)
-  "Chromosome length is the number of contours for a character. Each contour consists of three pairs of control point coordinates"
+(defun make-chromosome (chromosome-length &optional (range 1000) (straight-prob 0.1))
+  "Chromosome length is the number of contours for a character. Each contour consists of three pairs of control point coordinates. Every contour is a straight line with probability straight-prob. A straight line is denoted by a zero second control point."
   ;;todo no magick numbers
-  ;;todo make second point 0 for straight lines
   (let ((chromosome 0))
     (loop for i below (* chromosome-length 3 2) by (* 3 2)
        do (loop for k below (* 3 2)
-	     do (setf chromosome (dpb (random 10000) (byte *allele-size* (* *allele-size* (+ k i))) chromosome))))
+	     do (let ((coord 
+		       (cond ((and (or (= k 2) (= k 3))
+				   (<= (random 1.0) straight-prob))
+			      0)
+			     (T
+			      (random range)))))
+		  (setf chromosome (dpb coord (byte *allele-size* (* *allele-size* (+ k i))) chromosome)))))
     chromosome))
 
 (defun chromosome->coordinates (chromosome)
   (let* ((contour-count (/ (ceiling (/ (integer-length chromosome) *allele-size*)) (* 3 2)))
 	 (contours (make-array contour-count)))
     (loop for i below contour-count
+       for j below (* contour-count 3 2) by (* 3 2)
        do (setf (aref contours i)
 		(loop for k below (* 3 2)
-		   collect (ldb (byte *allele-size* (* *allele-size* (+ i k))) chromosome))))
+		   collect (ldb (byte *allele-size* (* *allele-size* (+ j k))) chromosome))))
     contours))
 
 (defun coords->curve (coords)
