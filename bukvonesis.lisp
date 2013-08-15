@@ -7,7 +7,8 @@
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
-   (bukva :accessor bukva)
+   (bukva :accessor bukva :writer (setf bukva))
+   (contours :accessor contours)
    (candidate :accessor candidate :initform '())))
 
 (defmethod setup ((app font-app))
@@ -23,6 +24,12 @@
 
 (defmethod exit ((app font-app))
   (zpb-ttf:close-font-loader (font-loader app)))
+
+(defun (setf bukva) (bukva app)
+  (setf (slot-value app 'bukva) bukva)
+  (setf (slot-value app 'contours) 
+	(zpb-ttf:contours (zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
+  (break "~a" (contours app)))
 
 (defun start ()
   ;;setup drawing window
@@ -64,7 +71,8 @@
     chromosome))
 
 (defun chromosome->coordinates (chromosome)
-  (let* ((contour-count (/ (ceiling (/ (integer-length chromosome) *allele-size*)) (* 3 2)))
+  "Chromosome is a number representing a list of contours. Returns an array of contours. Each contour is a list of 3 x,y coordinates."
+  (let* ((contour-count (ceiling (integer-length chromosome) (* *allele-size* 3 2)))
 	 (contours (make-array contour-count)))
     (loop for i below contour-count
        for j below (* contour-count 3 2) by (* 3 2)
@@ -74,6 +82,13 @@
     contours))
 
 (defun coords->curve (coords)
+  "Coords is a list consiting of 3 control points, represented by x,y pairs. Returns an array of coordinates. Each coordinate is an array of x,y,z coordinates. Z is always zero."
   (make-array '(3 3) :initial-contents
 	      (loop for i below (- (length coords) 1) by 2
 		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
+
+(defun evaluate (candidate target)
+  ;;todo
+  (zpb-ttf:do-contours (contour target)
+    (zpb-ttf:do-contour-segments (start ctrl end) contour
+)))
