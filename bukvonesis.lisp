@@ -3,12 +3,13 @@
 (in-package :bukvonesis)
 
 (defparameter *population* '())
+(defparameter *scores* '())
 (defparameter *allele-size* 10)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
    (bukva :accessor bukva :writer (setf bukva))
-   (contours :accessor contours)
+   (glyph :accessor glyph)
    (candidate :accessor candidate :initform '())))
 
 (defmethod setup ((app font-app))
@@ -27,9 +28,8 @@
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
-  (setf (slot-value app 'contours) 
-	(zpb-ttf:contours (zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
-  (break "~a" (contours app)))
+  (setf (slot-value app 'glyph) 
+	(zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
 
 (defun start ()
   ;;setup drawing window
@@ -42,12 +42,15 @@
     ;; initialization
     (setf *population* (initialize-population population-size chromosome-length))
     ;; evaluation
+    (setf *scores*
+	  (loop for chromosome in *population*
+	       collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
     ;; selection
-    ;; crossover
-    ;; mutation
     (setf (candidate app)
 	  (loop for coords across (chromosome->coordinates (first *population*))
 	     collect (coords->curve coords)))
+    ;; crossover
+    ;; mutation
     (run app)
 ))
 
@@ -90,15 +93,21 @@
 (defun evaluate (candidate target)
   (let ((index 0)
 	(score 0))
-    (when (< index (length candidate))
-      (zpb-ttf:do-contours (contour target)
-	(zpb-ttf:do-contour-segments (start ctrl end) contour
-	  (incf score (coords-distance start ctrl end (aref candidate index)))
-	  (incf index))))))
+    (zpb-ttf:do-contours (contour target)
+      (zpb-ttf:do-contour-segments (start ctrl end) contour
+	(incf score (coords-distance start ctrl end (aref candidate index)))
+	(incf index)
+	(when (= index (length candidate))
+	  (return))))
+
+    (when (not (= score 0))
+      (setf score (/ score index)))
+
+    score))
 
 (defun coords-distance (start ctrl end candidate)
   (let ((score 0))
-    (unless (and (zpb-ttf:x ctrl) (zpb-ttf:y ctrl)) 
+    (unless ctrl 
       (setf ctrl (zpb-ttf::make-control-point 0 0 nil)))
 
     (incf score (distance-squared (zpb-ttf:x start) (zpb-ttf:y start)
@@ -107,7 +116,10 @@
 				  (third candidate) (fourth candidate)))
     (incf score (distance-squared (zpb-ttf:x end) (zpb-ttf:y end)
 				  (fifth candidate) (sixth candidate)))
-    (/ score 3)))
+    (when (not (= score 0))
+      (setf score (/ score 3)))
+
+    score))
 
 
 (defun distance-squared (p1-x p1-y p2-x p2-y)
