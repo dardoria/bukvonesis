@@ -88,7 +88,29 @@
 		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
 
 (defun evaluate (candidate target)
-  ;;todo
-  (zpb-ttf:do-contours (contour target)
-    (zpb-ttf:do-contour-segments (start ctrl end) contour
-)))
+  (let ((index 0)
+	(score 0))
+    (when (< index (length candidate))
+      (zpb-ttf:do-contours (contour target)
+	(zpb-ttf:do-contour-segments (start ctrl end) contour
+	  (incf score (coords-distance start ctrl end (aref candidate index)))
+	  (incf index))))))
+
+(defun coords-distance (start ctrl end candidate)
+  (let ((score 0))
+    (unless (and (zpb-ttf:x ctrl) (zpb-ttf:y ctrl)) 
+      (setf ctrl (zpb-ttf::make-control-point 0 0 nil)))
+
+    (incf score (distance-squared (zpb-ttf:x start) (zpb-ttf:y start)
+				  (first candidate) (second candidate)))
+    (incf score (distance-squared (zpb-ttf:x ctrl) (zpb-ttf:y ctrl)
+				  (third candidate) (fourth candidate)))
+    (incf score (distance-squared (zpb-ttf:x end) (zpb-ttf:y end)
+				  (fifth candidate) (sixth candidate)))
+    (/ score 3)))
+
+
+(defun distance-squared (p1-x p1-y p2-x p2-y)
+  (+ (expt (- p1-x p2-x) 2)
+     (expt (- p1-y p2-y) 2)))
+
