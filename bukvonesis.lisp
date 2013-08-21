@@ -2,8 +2,8 @@
 
 (in-package :bukvonesis)
 
-(defparameter *population* '())
-(defparameter *scores* '())
+(defparameter *population* '()) ;;TODO this doesn't need to be global
+(defparameter *scores* '()) ;;TODO this doesn't need to be global
 (defparameter *allele-size* 10)
 
 (defclass font-app (base-app)
@@ -45,19 +45,57 @@
     (setf *scores*
 	  (loop for chromosome in *population*
 	       collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
-    ;; selection
+
+    ;;TODO select the most fittest from the current population to display
     (setf (candidate app)
 	  (loop for coords across (chromosome->coordinates (first *population*))
 	     collect (coords->curve coords)))
-    ;; crossover
-    ;; mutation
-    (run app)
-))
 
+    ;; selection
+    (let ((relative-scores (get-relative-scores *scores*)))
+      (setf *population*
+	    (loop repeat population-size
+	       collect (let ((parent1 (select *population* relative-scores))
+			     (parent2 (select *population* relative-scores)))
+			 ;; crossover and mutation
+			 (mutate (crossover parent1 parent2))))))
+    (run app)))
+
+;;;; genetic operations
 (defun initialize-population (population-size chromosome-length)
   (loop repeat population-size
      collect (make-chromosome chromosome-length)))
 
+(defun evaluate (candidate target)
+  (let ((index 0)
+	(score 0))
+    (zpb-ttf:do-contours (contour target)
+      (zpb-ttf:do-contour-segments (start ctrl end) contour
+	(incf score (coords-distance start ctrl end (aref candidate index)))
+	(incf index)
+	(when (= index (length candidate))
+	  (return))))
+
+    (when (not (= score 0))
+      (setf score (/ score index)))
+    ;;TODO invert score
+    score))
+
+(defun select (population scores)
+  "Population is a list of chromosomes. Scores is a list of relative scores for each chromosome."
+  (loop for score in scores
+     for chromosome in population
+     with current = 0
+     with pick = (random 1.0)
+     do (incf current score)
+       (when (> current pick)
+	 (return chromosome))))
+
+(defun crossover (parent1 parent2))
+
+(defun mutate (chromosome))
+
+;;;; helpers
 (defun make-chromosome (chromosome-length &optional (range 1000) (straight-prob 0.1))
   "Chromosome length is the number of contours for a character. Each contour consists of three pairs of control point coordinates. Every contour is a straight line with probability straight-prob. A straight line is denoted by a zero second control point."
   ;;todo no magick numbers
@@ -90,21 +128,6 @@
 	      (loop for i below (- (length coords) 1) by 2
 		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
 
-(defun evaluate (candidate target)
-  (let ((index 0)
-	(score 0))
-    (zpb-ttf:do-contours (contour target)
-      (zpb-ttf:do-contour-segments (start ctrl end) contour
-	(incf score (coords-distance start ctrl end (aref candidate index)))
-	(incf index)
-	(when (= index (length candidate))
-	  (return))))
-
-    (when (not (= score 0))
-      (setf score (/ score index)))
-
-    score))
-
 (defun coords-distance (start ctrl end candidate)
   (let ((score 0))
     (unless ctrl 
@@ -121,8 +144,12 @@
 
     score))
 
-
 (defun distance-squared (p1-x p1-y p2-x p2-y)
   (+ (expt (- p1-x p2-x) 2)
      (expt (- p1-y p2-y) 2)))
+
+(defun get-relative-scores (scores)
+  (let* ((fitness-total (reduce '+ scores))
+	(relative-fitness (mapcar (lambda (x) (/ x fitness-total)) scores)))
+    relative-fitness))
 
