@@ -58,7 +58,7 @@
 	       collect (let ((parent1 (select *population* relative-scores))
 			     (parent2 (select *population* relative-scores)))
 			 ;; crossover and mutation
-			 (mutate (crossover parent1 parent2))))))
+			 (mutate (crossover parent1 parent2) 0.1)))))
     (run app)))
 
 ;;;; genetic operations
@@ -67,6 +67,7 @@
      collect (make-chromosome chromosome-length)))
 
 (defun evaluate (candidate target)
+  "Candidate is array of lists, target is zpb-ttf:glyph."
   (let ((index 0)
 	(score 0))
     (zpb-ttf:do-contours (contour target)
@@ -91,9 +92,25 @@
        (when (> current pick)
 	 (return chromosome))))
 
-(defun crossover (parent1 parent2))
+(defun crossover (parent1 parent2)
+  "Parents are integers."
+  (let* ((min-length (if (> (integer-length parent1) (integer-length parent2))
+			 (integer-length parent2)
+			 (integer-length parent1)))
+	 (cross-point (random min-length))
+	 (p2-chunk-size (- (integer-length parent2) cross-point)))
+    (dpb (ldb (byte p2-chunk-size cross-point) parent2)
+	 (byte p2-chunk-size cross-point)
+	 (dpb (ldb (byte cross-point 0) parent1) (byte cross-point 0) 0))))
 
-(defun mutate (chromosome))
+(defun mutate (chromosome mutation-probability)
+  "Chromosome is integer, mutation-probability is < 1.0"
+  (let ((chromosome-place (list chromosome)))
+    (loop for i below (integer-length chromosome)
+       do (when (> mutation-probability (random 1.0))
+	    (setf (ldb (byte 1 i) (car chromosome-place))
+		  (lognot (ldb (byte 1 i) chromosome)))))
+    (car chromosome-place)))
 
 ;;;; helpers
 (defun make-chromosome (chromosome-length &optional (range 1000) (straight-prob 0.1))
