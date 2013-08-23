@@ -2,5 +2,5 @@
 (in-package :cl-user)
 
 (defpackage :bukvonesis
-  (:use :cl :ponon))
+  (:use :cl :sb-thread :ponon))
 

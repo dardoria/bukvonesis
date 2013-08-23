@@ -2,9 +2,8 @@
 
 (in-package :bukvonesis)
 
-(defparameter *population* '()) ;;TODO this doesn't need to be global
-(defparameter *scores* '()) ;;TODO this doesn't need to be global
-(defparameter *allele-size* 10)
+(defvar *allele-size* 10)
+(defvar *coords-range* 1000)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
@@ -33,33 +32,46 @@
 
 (defun start ()
   ;;setup drawing window
-  (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700))
+  (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700)))
+    (make-thread 'main-loop :arguments (list app))
+    (run app)))
+
+(defun main-loop (app)
+  (let ((population '())
+	(scores '())
 	(population-size 50)
-	(chromosome-length 10))
+	(chromosome-length 10)
+	(max-generations 300)
+	(mutation-probability 0.1))
+    
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
     (setf (bukva app) "Б")    
-
+    
     ;; initialization
-    (setf *population* (initialize-population population-size chromosome-length))
-    ;; evaluation
-    (setf *scores*
-	  (loop for chromosome in *population*
-	       collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
-
-    ;;TODO select the most fittest from the current population to display
-    (setf (candidate app)
-	  (loop for coords across (chromosome->coordinates (first *population*))
-	     collect (coords->curve coords)))
-
-    ;; selection
-    (let ((relative-scores (get-relative-scores *scores*)))
-      (setf *population*
-	    (loop repeat population-size
-	       collect (let ((parent1 (select *population* relative-scores))
-			     (parent2 (select *population* relative-scores)))
-			 ;; crossover and mutation
-			 (mutate (crossover parent1 parent2) 0.1)))))
-    (run app)))
+    (setf population (initialize-population population-size chromosome-length))
+    
+    (loop repeat max-generations
+       ;; evaluation
+       do (setf scores
+		(loop for chromosome in population
+		   collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
+	 
+       do (multiple-value-bind (index score)
+	      (get-best-chromosome-index scores)
+	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
+	      (return))
+	    (setf (candidate app)
+		  (loop for coords across (chromosome->coordinates (nth index  population))
+		     collect (coords->curve coords))))
+	 
+       ;; selection
+       do (let ((relative-scores (get-relative-scores scores)))
+	    (setf population
+		  (loop repeat population-size
+		     collect (let ((parent1 (select population relative-scores))
+				   (parent2 (select population relative-scores)))
+			       ;; crossover and mutation
+			       (mutate (crossover parent1 parent2) mutation-probability))))))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size chromosome-length)
@@ -79,6 +91,7 @@
 
     (when (not (= score 0))
       (setf score (/ score index)))
+    ;;TODO penalize for mismatching number of points
     ;;TODO invert score
     score))
 
@@ -113,7 +126,7 @@
     (car chromosome-place)))
 
 ;;;; helpers
-(defun make-chromosome (chromosome-length &optional (range 1000) (straight-prob 0.1))
+(defun make-chromosome (chromosome-length &optional (range *coords-range*) (straight-prob 0.1))
   "Chromosome length is the number of contours for a character. Each contour consists of three pairs of control point coordinates. Every contour is a straight line with probability straight-prob. A straight line is denoted by a zero second control point."
   ;;todo no magick numbers
   (let ((chromosome 0))
@@ -170,3 +183,12 @@
 	(relative-fitness (mapcar (lambda (x) (/ x fitness-total)) scores)))
     relative-fitness))
 
+(defun get-best-chromosome-index (scores)
+  (loop for score in scores
+     for i from 0 
+     with current = 0
+     with index = 0
+     do (when (> score current)
+	  (setf current score
+		index i))
+     finally (return (values index current))))
