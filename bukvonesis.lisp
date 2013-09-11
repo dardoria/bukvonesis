@@ -4,6 +4,7 @@
 
 (defvar *allele-size* 10)
 (defvar *coords-range* 1000)
+(defvar *main-loop* nil)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
@@ -19,11 +20,22 @@
   (set-color 0.0 0.0 0.0)
   (draw-string (font-loader app) (bukva app) 2000 -3500 :filled nil :size 250)
   (when (candidate app)
+    ;TODO draw straight lines
     (loop for curve in (candidate app)
 	 do (draw-curve curve))))
 
 (defmethod exit ((app font-app))
-  (zpb-ttf:close-font-loader (font-loader app)))
+  (zpb-ttf:close-font-loader (font-loader app))
+  (when (thread-alive-p *main-loop*)
+    (terminate-thread *main-loop*)))
+
+(defmethod key-pressed ((app font-app) key)
+  (case key
+    (#\r
+     (when (thread-alive-p *main-loop*)
+       (terminate-thread *main-loop*))
+     (setf *main-loop* (make-thread 'main-loop :arguments (list app))))))
+  
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
@@ -33,20 +45,24 @@
 (defun start ()
   ;;setup drawing window
   (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700)))
-    (make-thread 'main-loop :arguments (list app))
+    #+darwin
+    (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
+    #+unix
+    (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
+    (setf (bukva app) "A")
+;    (setf (bukva app) "Б")
+    
+    (setf *main-loop* (make-thread 'main-loop :arguments (list app)))
     (run app)))
 
 (defun main-loop (app)
   (let ((population '())
 	(scores '())
-	(population-size 50)
-	(chromosome-length 10)
-	(max-generations 300)
+	(population-size 100)
+	(chromosome-length 9)
+	(max-generations 500)
 	(mutation-probability 0.1))
-    
-    (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
-    (setf (bukva app) "Б")    
-    
+
     ;; initialization
     (setf population (initialize-population population-size chromosome-length))
     
@@ -92,7 +108,7 @@
     (when (not (= score 0))
       (setf score (/ score index)))
     ;;TODO penalize for mismatching number of points
-    ;;TODO invert score
+    (setf score (- 10000000 score)) ;;TODO find max
     score))
 
 (defun select (population scores)
@@ -107,6 +123,7 @@
 
 (defun crossover (parent1 parent2)
   "Parents are integers."
+  ;;TODO crossover at coordinates only
   (let* ((min-length (if (> (integer-length parent1) (integer-length parent2))
 			 (integer-length parent2)
 			 (integer-length parent1)))
@@ -126,7 +143,7 @@
     (car chromosome-place)))
 
 ;;;; helpers
-(defun make-chromosome (chromosome-length &optional (range *coords-range*) (straight-prob 0.1))
+(defun make-chromosome (chromosome-length &optional (range *coords-range*) (straight-prob 1.0))
   "Chromosome length is the number of contours for a character. Each contour consists of three pairs of control point coordinates. Every contour is a straight line with probability straight-prob. A straight line is denoted by a zero second control point."
   ;;todo no magick numbers
   (let ((chromosome 0))
