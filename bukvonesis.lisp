@@ -20,9 +20,12 @@
   (set-color 0.0 0.0 0.0)
   (draw-string (font-loader app) (bukva app) 2000 -3500 :filled nil :size 250)
   (when (candidate app)
-    ;TODO draw straight lines
     (loop for curve in (candidate app)
-	 do (draw-curve curve))))
+       do (if (and (= (row-major-aref curve 3) 0)
+		   (= (row-major-aref curve 4) 0))
+	      (draw-line (row-major-aref curve 0) (row-major-aref curve 1)
+			 (row-major-aref curve 6) (row-major-aref curve 7))
+	      (draw-curve curve)))))
 
 (defmethod exit ((app font-app))
   (zpb-ttf:close-font-loader (font-loader app))
@@ -81,13 +84,13 @@
 		     collect (coords->curve coords))))
 	 
        ;; selection
-       do (let ((relative-scores (get-relative-scores scores)))
-	    (setf population
-		  (loop repeat population-size
-		     collect (let ((parent1 (select population relative-scores))
-				   (parent2 (select population relative-scores)))
-			       ;; crossover and mutation
-			       (mutate (crossover parent1 parent2) mutation-probability))))))))
+        do (let ((total-score (float (reduce '+ scores))))
+ 	    (setf population
+ 		  (loop repeat population-size
+ 		     collect (let ((parent1 (select population scores total-score))
+ 				   (parent2 (select population scores total-score)))
+ 			       ;; crossover and mutation
+ 			       (mutate (crossover parent1 parent2) mutation-probability))))))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size chromosome-length)
@@ -111,12 +114,12 @@
     (setf score (- 10000000 score)) ;;TODO find max
     score))
 
-(defun select (population scores)
+(defun select (population scores total-score)
   "Population is a list of chromosomes. Scores is a list of relative scores for each chromosome."
   (loop for score in scores
      for chromosome in population
      with current = 0
-     with pick = (random 1.0)
+     with pick = (random total-score)
      do (incf current score)
        (when (> current pick)
 	 (return chromosome))))
@@ -194,11 +197,6 @@
 (defun distance-squared (p1-x p1-y p2-x p2-y)
   (+ (expt (- p1-x p2-x) 2)
      (expt (- p1-y p2-y) 2)))
-
-(defun get-relative-scores (scores)
-  (let* ((fitness-total (reduce '+ scores))
-	(relative-fitness (mapcar (lambda (x) (/ x fitness-total)) scores)))
-    relative-fitness))
 
 (defun get-best-chromosome-index (scores)
   (loop for score in scores
