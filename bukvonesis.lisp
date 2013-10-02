@@ -2,9 +2,9 @@
 
 (in-package :bukvonesis)
 
-(defvar *allele-size* 10)
-(defvar *coords-range* 1000)
-(defvar *main-loop* nil)
+(defparameter *allele-size* 8)
+(defparameter *coords-range* 3000)
+(defparameter *main-loop* nil)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
@@ -52,7 +52,7 @@
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
     #+unix
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
-    (setf (bukva app) "A")
+    (setf (bukva app) "B")
 ;    (setf (bukva app) "Б")
     
     (setf *main-loop* (make-thread 'main-loop :arguments (list app)))
@@ -61,36 +61,39 @@
 (defun main-loop (app)
   (let ((population '())
 	(scores '())
-	(population-size 100)
-	(chromosome-length 9)
-	(max-generations 500)
+	(population-size 200)
+	(chromosome-length 7)
+	(max-generations 2000)
 	(mutation-probability 0.1))
 
     ;; initialization
     (setf population (initialize-population population-size chromosome-length))
     
-    (loop repeat max-generations
-       ;; evaluation
-       do (setf scores
-		(loop for chromosome in population
-		   collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
+     (loop repeat max-generations
+        ;; evaluation
+        do (setf scores
+ 		(loop for chromosome in population
+ 		   collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
 	 
-       do (multiple-value-bind (index score)
-	      (get-best-chromosome-index scores)
-	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
-	      (return))
+        do (multiple-value-bind (index score)
+ 	      (get-best-chromosome-index scores)
+ 	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
+ 	      (return))
+	    (format t "~d~%" (float score))
 	    (setf (candidate app)
-		  (loop for coords across (chromosome->coordinates (nth index  population))
-		     collect (coords->curve coords))))
+ 		  (loop for coords across (chromosome->coordinates (nth index  population))
+ 		     collect (coords->curve coords))))
 	 
-       ;; selection
-        do (let ((total-score (float (reduce '+ scores))))
- 	    (setf population
- 		  (loop repeat population-size
- 		     collect (let ((parent1 (select population scores total-score))
- 				   (parent2 (select population scores total-score)))
- 			       ;; crossover and mutation
- 			       (mutate (crossover parent1 parent2) mutation-probability))))))))
+        ;; selection
+	do (let ((total-score (float (reduce '+ scores))))
+	     (setf population
+		   (loop repeat population-size
+		      collect (let ((parent1 (select population scores total-score))
+				    (parent2 (select population scores total-score)))
+				;; crossover and mutation
+				(mutate (crossover parent1 parent2) mutation-probability))))))
+     
+     (format t "~b~%" (candidate app))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size chromosome-length)
@@ -108,10 +111,10 @@
 	(when (= index (length candidate))
 	  (return))))
 
-    (when (not (= score 0))
-      (setf score (/ score index)))
+;    (when (not (= score 0))
+;      (setf score (/ score index)))
     ;;TODO penalize for mismatching number of points
-    (setf score (- 10000000 score)) ;;TODO find max
+    (setf score (- 1000000000 score)) ;;TODO find max
     score))
 
 (defun select (population scores total-score)
@@ -127,11 +130,11 @@
 (defun crossover (parent1 parent2)
   "Parents are integers."
   ;;TODO crossover at coordinates only
-  (let* ((min-length (if (> (integer-length parent1) (integer-length parent2))
-			 (integer-length parent2)
-			 (integer-length parent1)))
-	 (cross-point (random min-length))
-	 (p2-chunk-size (- (integer-length parent2) cross-point)))
+  (let* ((min-length (min (integer-length parent1) (integer-length parent2)))
+	 (max-length (max (integer-length parent1) (integer-length parent2)))
+	 (cross-point (* (random (round (/ min-length *allele-size*))) *allele-size*))
+	 (p2-chunk-size (- max-length cross-point)))
+    ;(format t "~a~%" cross-point)
     (dpb (ldb (byte p2-chunk-size cross-point) parent2)
 	 (byte p2-chunk-size cross-point)
 	 (dpb (ldb (byte cross-point 0) parent1) (byte cross-point 0) 0))))
@@ -189,8 +192,6 @@
 				  (third candidate) (fourth candidate)))
     (incf score (distance-squared (zpb-ttf:x end) (zpb-ttf:y end)
 				  (fifth candidate) (sixth candidate)))
-    (when (not (= score 0))
-      (setf score (/ score 3)))
 
     score))
 
