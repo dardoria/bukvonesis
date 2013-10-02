@@ -4,8 +4,9 @@
 
 (defparameter *allele-size* 8)
 (defparameter *coords-range* 3000)
-(defparameter *max-value* 100000)
+(defparameter *max-value* 100000000000)
 (defparameter *worker-count* 10)
+(defparameter *message-queue* nil)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
@@ -15,6 +16,10 @@
 
 (defmethod setup ((app font-app))
   (set-background 0.25 0.63 0.54))
+
+(defmethod update ((app font-app))
+  ;;TODO collect all curves at once and draw them here
+  (setf (candidate app) (try-pop-queue *message-queue*)))
 
 (defmethod draw ((app font-app))
   (clear)
@@ -50,9 +55,12 @@
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
     #+unix
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
+    
     (setf (bukva app) "B")
 ;    (setf (bukva app) "Б")
     
+    (setf *message-queue* (make-queue))
+
     (main-loop app *worker-count*)
     (run app)))
 
@@ -61,11 +69,9 @@
     (setf *kernel* (make-kernel worker-count :name "bukvonesis-main")))
   (kill-tasks :default)
 
-  (let ((queue (make-queue)))
-    (zpb-ttf:do-contours (contour (glyph app))
-      (zpb-ttf:do-contour-segments (start ctrl end) contour
-	(future (evolve-curve start ctrl end queue))))
-    (format t "~a" (try-pop-queue queue))))
+  (zpb-ttf:do-contours (contour (glyph app))
+    (zpb-ttf:do-contour-segments (start ctrl end) contour
+      (future (evolve-curve start ctrl end *message-queue*)))))
 
 (defun evolve-curve (start control end queue)
   (let ((population '())
@@ -83,16 +89,18 @@
        do (setf scores
  		(loop for chromosome in population
  		   collect (evaluate (chromosome->coordinates chromosome) start control end)))
-	 
+
        do (multiple-value-bind (index score)
  	      (get-best-chromosome-index scores)
- 	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
+
+	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
  	      (return))
 	    
-	    (push-queue 
-	     (loop for coords across (chromosome->coordinates (nth index  population))
-		collect (coords->curve coords))
-	     queue))
+	    (let ((candidate 
+		   (loop for coords across (chromosome->coordinates (nth index  population))
+		      collect (coords->curve coords))))
+	    
+	      (push-queue candidate queue)))
 	 
        ;; selection
        do (let ((total-score (float (reduce '+ scores))))
@@ -203,4 +211,6 @@
      do (when (> score current)
 	  (setf current score
 		index i))
-     finally (return (values index current))))
+     finally (if (< current 0)
+		 (error "Negative score!!! ~a ~a" index current)
+		 (return (values index current)))))
