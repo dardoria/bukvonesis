@@ -4,7 +4,8 @@
 
 (defparameter *allele-size* 8)
 (defparameter *coords-range* 3000)
-(defparameter *main-loop* nil)
+(defparameter *max-value* 100000)
+(defparameter *worker-count* 10)
 
 (defclass font-app (base-app)
   ((font-loader :accessor font-loader)
@@ -19,7 +20,8 @@
   (clear)
   (set-color 0.0 0.0 0.0)
   (draw-string (font-loader app) (bukva app) 2000 -3500 :filled nil :size 250)
-  (when (candidate app)
+
+  (when (candidate app)    
     (loop for curve in (candidate app)
        do (if (and (= (row-major-aref curve 3) 0)
 		   (= (row-major-aref curve 4) 0))
@@ -29,16 +31,12 @@
 
 (defmethod exit ((app font-app))
   (zpb-ttf:close-font-loader (font-loader app))
-  (when (thread-alive-p *main-loop*)
-    (terminate-thread *main-loop*)))
+  (kill-tasks :default))
 
 (defmethod key-pressed ((app font-app) key)
   (case key
     (#\r
-     (when (thread-alive-p *main-loop*)
-       (terminate-thread *main-loop*))
-     (setf *main-loop* (make-thread 'main-loop :arguments (list app))))))
-  
+     (main-loop app *worker-count*))))
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
@@ -55,67 +53,65 @@
     (setf (bukva app) "B")
 ;    (setf (bukva app) "Б")
     
-    (setf *main-loop* (make-thread 'main-loop :arguments (list app)))
+    (main-loop app *worker-count*)
     (run app)))
 
-(defun main-loop (app)
+(defun main-loop (app worker-count)
+  (unless *kernel*
+    (setf *kernel* (make-kernel worker-count :name "bukvonesis-main")))
+  (kill-tasks :default)
+
+  (let ((queue (make-queue)))
+    (zpb-ttf:do-contours (contour (glyph app))
+      (zpb-ttf:do-contour-segments (start ctrl end) contour
+	(future (evolve-curve start ctrl end queue))))
+    (format t "~a" (try-pop-queue queue))))
+
+(defun evolve-curve (start control end queue)
   (let ((population '())
 	(scores '())
 	(population-size 200)
-	(chromosome-length 7)
-	(max-generations 2000)
+	(chromosome-length 1)
+	(max-generations 2)
 	(mutation-probability 0.1))
 
     ;; initialization
     (setf population (initialize-population population-size chromosome-length))
     
-     (loop repeat max-generations
-        ;; evaluation
-        do (setf scores
+    (loop repeat max-generations
+       ;; evaluation
+       do (setf scores
  		(loop for chromosome in population
- 		   collect (evaluate (chromosome->coordinates chromosome) (glyph app))))
+ 		   collect (evaluate (chromosome->coordinates chromosome) start control end)))
 	 
-        do (multiple-value-bind (index score)
+       do (multiple-value-bind (index score)
  	      (get-best-chromosome-index scores)
  	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
  	      (return))
-	    (format t "~d~%" (float score))
-	    (setf (candidate app)
- 		  (loop for coords across (chromosome->coordinates (nth index  population))
- 		     collect (coords->curve coords))))
+	    
+	    (push-queue 
+	     (loop for coords across (chromosome->coordinates (nth index  population))
+		collect (coords->curve coords))
+	     queue))
 	 
-        ;; selection
-	do (let ((total-score (float (reduce '+ scores))))
-	     (setf population
-		   (loop repeat population-size
-		      collect (let ((parent1 (select population scores total-score))
-				    (parent2 (select population scores total-score)))
-				;; crossover and mutation
-				(mutate (crossover parent1 parent2) mutation-probability))))))
-     
-     (format t "~b~%" (candidate app))))
+       ;; selection
+       do (let ((total-score (float (reduce '+ scores))))
+	    (setf population
+		  (loop repeat population-size
+		     collect (let ((parent1 (select population scores total-score))
+				   (parent2 (select population scores total-score)))
+			       ;; crossover and mutation
+			       (mutate (crossover parent1 parent2) mutation-probability))))))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size chromosome-length)
   (loop repeat population-size
      collect (make-chromosome chromosome-length)))
 
-(defun evaluate (candidate target)
-  "Candidate is array of lists, target is zpb-ttf:glyph."
-  (let ((index 0)
-	(score 0))
-    (zpb-ttf:do-contours (contour target)
-      (zpb-ttf:do-contour-segments (start ctrl end) contour
-	(incf score (coords-distance start ctrl end (aref candidate index)))
-	(incf index)
-	(when (= index (length candidate))
-	  (return))))
-
-;    (when (not (= score 0))
-;      (setf score (/ score index)))
-    ;;TODO penalize for mismatching number of points
-    (setf score (- 1000000000 score)) ;;TODO find max
-    score))
+(defun evaluate (candidate start control end)
+  "Candidate is array of lists, start, control and end are zpb-ttf:control-point."
+  ;;TODO do not hard code max-value
+  (- *max-value* (coords-distance start control end (aref candidate 0))))
 
 (defun select (population scores total-score)
   "Population is a list of chromosomes. Scores is a list of relative scores for each chromosome."

@@ -3,6 +3,10 @@
 
 (in-package :bukvonesis-test)
 
+(def-suite bukvonesis)
+
+(in-suite bukvonesis)
+
 (test distance-squared
   (is (= 0 (bukvonesis::distance-squared 2 2 2 2))))
 
@@ -20,3 +24,9 @@
 					nil
 					(zpb-ttf::make-control-point 1 1 nil)
 					'(1 1 0 0 1 1)))))
+(test evaluate
+  (is (= bukvonesis::*max-value* (bukvonesis::evaluate (make-array 1 :initial-contents '((1 1 1 1 1 1)))
+					   (zpb-ttf::make-control-point 1 1 nil)
+					   (zpb-ttf::make-control-point 1 1 nil)
+					   (zpb-ttf::make-control-point 1 1 nil)))))
+				 

@@ -2,5 +2,5 @@
 (in-package :cl-user)
 
 (defpackage :bukvonesis
-  (:use :cl :sb-thread :ponon))
+  (:use :cl :lparallel :lparallel.queue :ponon))
 
