@@ -16,17 +16,17 @@
   (is (equal (values 4 6) (bukvonesis::get-best-chromosome-index '(1 5 3 4 6)))))
 
 (test coords-distance
-  (is (= 0 (bukvonesis::coords-distance (zpb-ttf::make-control-point 1 1 nil)
+  (is (= 0 (bukvonesis::coords-distance '(1 1 2 2 1 1)
+					(zpb-ttf::make-control-point 1 1 nil)
 					(zpb-ttf::make-control-point 2 2 nil)
+					(zpb-ttf::make-control-point 1 1 nil))))
+
+  (is (= 0 (bukvonesis::coords-distance '(1 1 0 0 1 1)
 					(zpb-ttf::make-control-point 1 1 nil)
-					'(1 1 2 2 1 1))))
-  (is (= 0 (bukvonesis::coords-distance (zpb-ttf::make-control-point 1 1 nil)
 					nil
-					(zpb-ttf::make-control-point 1 1 nil)
-					'(1 1 0 0 1 1)))))
+					(zpb-ttf::make-control-point 1 1 nil)))))
 (test evaluate
-  (is (= bukvonesis::*max-value* (bukvonesis::evaluate (make-array 1 :initial-contents '((1 1 1 1 1 1)))
-					   (zpb-ttf::make-control-point 1 1 nil)
-					   (zpb-ttf::make-control-point 1 1 nil)
-					   (zpb-ttf::make-control-point 1 1 nil)))))
-				 
+  (is (= bukvonesis::*max-value* (bukvonesis::evaluate '(1 1 1 1 1 1)
+						       (zpb-ttf::make-control-point 1 1 nil)
+						       (zpb-ttf::make-control-point 1 1 nil)
+						       (zpb-ttf::make-control-point 1 1 nil)))))
