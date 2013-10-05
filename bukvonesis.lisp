@@ -2,8 +2,8 @@
 
 (in-package :bukvonesis)
 
-(defparameter *max-value* 100000000000)
-(defparameter *worker-count* 10)
+(defparameter *max-value* 90000000)
+(defparameter *worker-count* 20)
 (defparameter *message-queue* nil)
 
 (defclass font-app (base-app)
@@ -15,25 +15,32 @@
 (defmethod setup ((app font-app))
   (set-background 0.0 0.0 0.0))
 
-(defmethod update ((app font-app))
-  ;;TODO collect all curves at once and draw them here
-  (let ((candidate (try-pop-queue *message-queue*)))
-    (when candidate 
-      (setf (candidate app) (push candidate (candidate app))))))
+;(defmethod update ((app font-app))
+  ;;TODO collect curves to show realtime prgress
+;  (let ((candidate (try-pop-queue *message-queue*)))
+;    (when candidate 
+;      (setf (candidate app) (push candidate (candidate app))))))
+;)
 
 (defmethod draw ((app font-app))
   (clear)
   (set-color 0.2 0.7 0.1)
   (draw-string (font-loader app) (bukva app) 2000 -3500 :filled nil :size 250)
 
+  (with-state
+    ;;TODO no magick numbers
+    (scale 125/1024 (* 125/1024 -1) 125/1024)
+    (translate 2000 -3500 0)
 
-  (when (candidate app)    
-    (loop for curve in (candidate app)
-       do (if (and (= (row-major-aref curve 3) 0)
-		   (= (row-major-aref curve 4) 0))
-	      (draw-line (row-major-aref curve 0) (row-major-aref curve 1)
-			 (row-major-aref curve 6) (row-major-aref curve 7))
-	      (draw-curve curve)))))
+    (when (candidate app)
+      (progn
+	(set-color 0.7 0.2 0.1)
+	(loop for curve in (candidate app)
+	   do (if (and (= (row-major-aref curve 3) 0)
+		       (= (row-major-aref curve 4) 0))
+		  (draw-line (row-major-aref curve 0) (row-major-aref curve 1)
+			     (row-major-aref curve 6) (row-major-aref curve 7))
+		  (draw-curve curve)))))))
 
 (defmethod exit ((app font-app))
   (zpb-ttf:close-font-loader (font-loader app))
@@ -57,8 +64,8 @@
     #+unix
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
     
-    (setf (bukva app) "S")
-;    (setf (bukva app) "Б")
+;    (setf (bukva app) "S")
+    (setf (bukva app) "Б")
     
     (setf *message-queue* (make-queue))
 
@@ -70,19 +77,27 @@
     (setf *kernel* (make-kernel worker-count :name "bukvonesis-main")))
   (kill-tasks :default)
 
-  (let ((channel (make-channel)))
+  (let ((channel (make-channel))
+	(control-queue (make-queue))
+	(segments-count 0))
+
     (zpb-ttf:do-contours (contour (glyph app))
       (zpb-ttf:do-contour-segments (start ctrl end) contour
-	(submit-task channel 'evolve-curve start ctrl end *message-queue*)))))
+	(incf segments-count)
+	(submit-task channel 'evolve-curve start ctrl end *message-queue* control-queue)))
 
-(defun evolve-curve (start control end queue)
+    (future (collect-results app control-queue channel segments-count))))
+
+(defun evolve-curve (start control end message-queue control-queue)
   (let ((population '())
 	(scores '())
-	(population-size 100)
-	(max-generations 200)
+	(population-size 350)
+	(max-generations 400)
 	(mutation-probability 0.1)
 	(max-coordinate-value (get-max-coords-value start end))
-	(straight-line-probability (if control 0.0 1.0)))
+	(straight-line-probability (if control 0.0 1.0))
+	(best-candidate)
+	(best-score))
 
     ;; initialization
     (setf population (initialize-population population-size max-coordinate-value straight-line-probability))
@@ -96,19 +111,36 @@
        do (multiple-value-bind (index score)
  	      (get-best-chromosome-index scores)
 
+	    (setf best-candidate (nth index  population))
+	    (setf best-score score)
+
 	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
  	      (return))
-	    
-	    (push-queue (coords->curve (nth index  population)) queue))
+
+	    (push-queue (coords->curve best-candidate) message-queue))
 	 
        ;; selection
        do (let ((total-score (float (reduce '+ scores))))
 	    (setf population
-		  (loop repeat population-size
-		     collect (let ((parent1 (select population scores total-score))
-				   (parent2 (select population scores total-score)))
-			       ;; crossover and mutation
-			       (mutate (crossover parent1 parent2) mutation-probability))))))))
+		  (cons best-candidate
+			(loop repeat population-size
+			   collect (let ((parent1 (select population scores total-score))
+					 (parent2 (select population scores total-score)))
+				     ;; crossover and mutation
+				     (mutate (crossover parent1 parent2) mutation-probability)))))))
+;    (format t "~a, ~a, ~a, ~a, ~a ~%" (- *max-value* best-score) start control end best-candidate)
+    (push-queue 1 control-queue)
+    best-candidate))
+
+(defun collect-results (app control-queue channel segments-count)
+  (let ((finished-tasks-count 0))
+    (loop
+       do (pop-queue control-queue)
+       do (incf finished-tasks-count)
+       while (< finished-tasks-count segments-count))
+    (setf (candidate app)
+	  (loop repeat finished-tasks-count
+	     collect (coords->curve (receive-result channel))))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size max-coordinate-value straight-line-probability)
@@ -137,6 +169,7 @@
 	   
 
 (defun mutate (chromosome mutation-probability)
+;;TODO fix mutation
 ;  "Chromosome is integer, mutation-probability is < 1.0"
 ;  (let ((chromosome-place (list chromosome)))
 ;    (loop for i below (integer-length chromosome)
