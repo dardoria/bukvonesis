@@ -56,12 +56,12 @@
   (setf (slot-value app 'glyph) 
 	(zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
 
-(defun start ()
+(defun bukvo-start ()
   ;;setup drawing window
   (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700)))
     #+darwin
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
-    #+unix
+    #+(and unix (not darwin))
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
     
 ;    (setf (bukva app) "S")
