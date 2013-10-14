@@ -8,7 +8,7 @@
   (make-pathname :name nil :type nil :defaults #.(or *compile-file-truename* *load-truename*)))
 
 (defparameter bukvonesis-config:*temp-directory*
-  (merge-pathnames bukvonesis-config:*base-directory* "tmp"))
+  (merge-pathnames (make-pathname :directory '(:relative "tmp")) bukvonesis-config:*base-directory*))
 
 ;;;; bukvonesis
 (defpackage :bukvonesis

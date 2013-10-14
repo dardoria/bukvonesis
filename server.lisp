@@ -33,8 +33,9 @@
 	  (chain xhr (send form-data))))))
   
 (defun font-upload ()
-  (break "~A" (post-parameter "fontfile"))
-  )
+  (destructuring-bind (path name content-type) (post-parameter "fontfile")
+    (declare (ignore content-type))
+    (cl-fad:copy-file path (make-pathname :name name :defaults bukvonesis-config:*temp-directory*) :overwrite t)))
 
 (defun start-server ()
   (setf *show-lisp-errors-p* t
