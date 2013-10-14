@@ -7,5 +7,5 @@
   :license "Apache License, Version 2.0"
   :depends-on ("hunchentoot" "cl-who" "parenscript" "ponon" "lparallel") ;;todo remove ponon
   :components ((:file "package")
-               (:file "bukvonesis")))
-
+               (:file "bukvonesis")
+	       (:file "server")))

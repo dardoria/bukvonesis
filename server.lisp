@@ -9,9 +9,7 @@
 	(:meta :http-equiv "Content-Type" 
 	       :content    "text/html;charset=utf-8")
 	(:title ,title)
-	(:script :type "text/javascript" 
-		 :href "/utils.js")
-	)
+	(:script :type "text/javascript" :src "/bukvonesis.js"))
        (:body 
 	,@body))))
 	
@@ -20,25 +18,22 @@
     (:title "bukvonesis")
     (:h1 "Select Font:")
     (:input :type "file" :id "font-selector" :onchange (ps-inline (upload-file
-								   (@ (chain document (get-element-by-id "font-selector")) files 0))))
+							    (@ (chain document (get-element-by-id "font-selector")) files 0))))
     (:canvas :id "bukvonesis" :width "1000" :height "1000")))
 
 (defun bukvonesis.js ()
-  (html (:princ
-	 (ps (defun upload-file (file)
-	       (chain console (log file))
-	       (let ((reader (new (*file-reader)))
-		     (xhr (new (*x-m-l-http-request)))
-		     (self this))
-		 (setf (@ this xhr) xhr)
-		 
-		 (chain this xhr (open "POST" "font-upload"))
-		 (chain this xhr (override-mime-type "text/plain; charset=x-user-defined-binary"))
-		 (setf (@ reader onload) (lambda (evt)
-					   (chain xhr (send-as-binary (@ evt target result)))))
-		 (chain reader (read-as-binary-string file))))))))
-
+  (setf (content-type*) "text/javascript")
+  (ps (defun upload-file (file)
+	(let ((xhr (new (*x-m-l-http-request)))
+	      (form-data (new (*form-data))))
+	  
+	  (chain form-data (append "fontfile" file))
+	  (chain console (log file))
+	  (chain xhr (open "POST" "font-upload"))
+	  (chain xhr (send form-data))))))
+  
 (defun font-upload ()
+  (break "~A" (post-parameter "fontfile"))
   )
 
 (defun start-server ()
@@ -46,15 +41,16 @@
 	*show-lisp-backtraces-p* t
 	*break-on-signals* nil)
   
-  (setf *dispatch-table* (list (create-static-file-dispatcher-and-handler "/utils.js" 
-									  #p"/~/proekti/bukvonesis/utils.js" ;;todo this doesn't work
-									  "text/javascript")
-			       (create-prefix-dispatcher "/tags" 'tips-for-tag)
-			       (create-prefix-dispatcher "/bukvonesis.js" 'bukvonesis.js)
-			       (create-prefix-dispatcher "/font-upload" 'font-upload)
-			       (create-prefix-dispatcher "/" 'index.html)))
+  (setf *dispatch-table* 
+	(list 'dispatch-easy-handlers 
+	      (create-prefix-dispatcher "/bukvonesis.js" 'bukvonesis.js)
+	      (create-prefix-dispatcher "/font-upload" 'font-upload)
+	      (create-prefix-dispatcher "/" 'index.html)))
 
-  (unless *httpd*
-    (setf *httpd* (make-instance 'hunchentoot:easy-acceptor :port 9081))
-    (start *httpd*)))
+  (when *httpd*
+    (stop *httpd*)
+    (setf *httpd* nil))
+
+  (setf *httpd* (make-instance 'hunchentoot:easy-acceptor :port 9081))
+  (start *httpd*))
 
