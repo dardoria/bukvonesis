@@ -1,0 +1,27 @@
+{namespace bukvonesis.html}
+
+{template index}
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>Bukvonesis</title>
+      <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+      <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+      <script type="text/javascript" src="//code.jquery.com/jquery.js"></script>
+
+      <script type="text/javascript" src="js/bootstrap.min.js"></script>
+      <script type="text/javascript" src="js/bukvonesis.js"></script>
+    </head>
+    <body>
+      <div>
+	<h1>Select Font</h1>
+	<input type="file" id="font-selector" onchange="uploadFile($('#font-selector')[0].files[0]);"/>
+      </div>
+      <canvas id="bukvonesis" width="1000" height="1000"/>
+    </body>
+  </html>
+{/template}

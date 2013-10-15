@@ -1,0 +1,10 @@
+(in-package :bukvonesis)
+
+(defun upload-file (file)
+  (let ((xhr (new (*x-m-l-http-request)))
+	(form-data (new (*form-data))))
+    
+    (chain form-data (append "fontfile" file))
+    (chain console (log file))
+    (chain xhr (open "POST" "font-upload"))
+    (chain xhr (send form-data))))
