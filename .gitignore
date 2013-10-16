@@ -1,2 +1,7 @@
 *.fasl
 *~
+*.sass*
+css/*
+fonts/*
+js/*
+tmp/*
