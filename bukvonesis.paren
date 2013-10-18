@@ -1,4 +1,5 @@
 (in-package :bukvonesis)
+(defvar font-name nil)
 
 ;;inject paper.js in the global scope
 (chain paper (install window))
@@ -7,29 +8,40 @@
 ($$ (document ready)
   (chain paper (setup "bukvonesis"))
   ($$ ("#font-selector" change)
-    (load-font-from-file (@ ($ this) 0 files 0))))
-    ;(chain upload-file (($ this) files 0)))
+    (upload-file (@ ($ this) 0 files 0))))
 
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
-	(form-data (ps:new (*form-data))))
+	(form-data (new (*form-data))))
     
+    (setf font-name (@ file name))
+    (setf (@ xhr onreadystatechange) (on-font-upload xhr))
     (chain form-data (append "fontfile" file))
     (chain xhr (open "POST" "font-upload"))
     (chain xhr (send form-data))))
 
-;;Read file as font and return a css fontstyle
-(defun load-font-from-file (file)
-  (let ((reader (new *file-reader)))
-    (setf (@ reader onload)
-	  (lambda (event)
-	    (let ((font-contents (@ event target result))
-		  (font-face (chain document (create-element "style"))))	      
-	      (chain font-face (set-attribute "type" "text/css"))
-	      (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: 'PjsEmptyFont';  src: url(" font-contents "')"
-						   "format('truetype');}"))
-	      (chain console (log font-face)))))
+(defun on-font-upload (xhr)
+  (lambda () 
+    (console.log xhr)
+    (when (equal (@ xhr ready-state) 4)
+      (when (equal (@ xhr status) 200)
+	(let ((font-face (chain document (create-element "style"))))
+	  (chain font-face (set-attribute "type" "text/css"))
+	  (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: " 
+						"'"font-name"'" 
+						";  src: url('" 
+						(@ xhr response-text)
+						"')}"))	      
+	  (chain (@  ($ (chain document head))) (append font-face)))
+	(display-sample-text)))))
 
-    (let ((font (new (*blob (array file) (create type "application/x-font-ttf")))))
-      (chain reader (read-as-data-u-r-l font)))))
-	    
+
+
+(defun display-sample-text ()
+  (let ((sample-text (new (*point-text (create 
+					point (array 50 50)
+					content "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+					fill-color "black"
+					font-size "45"
+					font (+ "'" font-name "'")))))))
+  (setf (@ (chain document (get-element-by-id "test")) style font-family) (+ "'" font-name "'")))

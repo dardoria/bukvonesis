@@ -20,4 +20,6 @@
 (defmacro $$ ((selector event-binding) &body body)
   `((@ ($ ,selector) ,event-binding) (lambda () ,@body)))
 
+(defmacro console.log (thing)
+  `(chain console (log ,thing)))
 
