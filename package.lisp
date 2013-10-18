@@ -15,3 +15,9 @@
   (:use :cl :lparallel :lparallel.queue :ponon :hunchentoot :cl-who :parenscript)
   (:shadowing-import-from :parenscript :chain))
 
+(in-package :bukvonesis)
+
+(defmacro $$ ((selector event-binding) &body body)
+  `((@ ($ ,selector) ,event-binding) (lambda () ,@body)))
+
+

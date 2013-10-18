@@ -1,10 +1,35 @@
 (in-package :bukvonesis)
 
+;;inject paper.js in the global scope
+(chain paper (install window))
+
+;;setup the canvas
+($$ (document ready)
+  (chain paper (setup "bukvonesis"))
+  ($$ ("#font-selector" change)
+    (load-font-from-file (@ ($ this) 0 files 0))))
+    ;(chain upload-file (($ this) files 0)))
+
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
-	(form-data (new (*form-data))))
+	(form-data (ps:new (*form-data))))
     
     (chain form-data (append "fontfile" file))
-    (chain console (log file))
     (chain xhr (open "POST" "font-upload"))
     (chain xhr (send form-data))))
+
+;;Read file as font and return a css fontstyle
+(defun load-font-from-file (file)
+  (let ((reader (new *file-reader)))
+    (setf (@ reader onload)
+	  (lambda (event)
+	    (let ((font-contents (@ event target result))
+		  (font-face (chain document (create-element "style"))))	      
+	      (chain font-face (set-attribute "type" "text/css"))
+	      (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: 'PjsEmptyFont';  src: url(" font-contents "')"
+						   "format('truetype');}"))
+	      (chain console (log font-face)))))
+
+    (let ((font (new (*blob (array file) (create type "application/x-font-ttf")))))
+      (chain reader (read-as-data-u-r-l font)))))
+	    

@@ -20,6 +20,7 @@
 
       <script type="text/javascript" src="//code.jquery.com/jquery.js"></script>
       <script type="text/javascript" src="js/bootstrap.min.js"></script>
+      <script type="text/javascript" src="js/paper.js"></script>
 
       <script type="text/javascript" src="js/bukvonesis.js"></script>
     </head>
@@ -27,8 +28,8 @@
       <div class="container">
 	<canvas id="bukvonesis" class="platno"></canvas>
 	<div id="mainMenu">
-	  <label for="font-selector" id="selectLabel">Select Font</label>
-	  <input type="file" id="font-selector" class="hidden" onchange="uploadFile($('#font-selector')[0].files[0]);"/>
+	  <label for="font-selector" id="selectLabel"><h1>Click here to select a font file on your computer.</h1></label>
+	  <input type="file" id="font-selector" class="hidden"/>
 	</div>
       </div>
     </body>
