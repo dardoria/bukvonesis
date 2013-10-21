@@ -8,7 +8,8 @@
   :depends-on ("hunchentoot" "parenscript" "ponon" "lparallel" "closure-template" "clws") ;;todo remove ponon
   :components ((:file "package")
                (:file "bukvonesis")
-	       (:file "hunchentoot")))
+	       (:file "hunchentoot")
+	       (:file "clws")))
 
 (in-package :bukvonesis)
 (import-macros-from-lisp '$$ 'console.log)
