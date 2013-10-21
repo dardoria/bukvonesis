@@ -1,5 +1,6 @@
 (in-package :bukvonesis)
 (defvar font-name nil)
+(defvar ws-client nil)
 
 ;;inject paper.js in the global scope
 (chain paper (install window))
@@ -7,8 +8,12 @@
 ;;setup the canvas
 ($$ (document ready)
   (chain paper (setup "bukvonesis"))
+
   ($$ ("#font-selector" change)
-    (upload-file (@ ($ this) 0 files 0))))
+    (upload-file (@ ($ this) 0 files 0)))
+
+  (setf ws-client (init-ws)))
+
 
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
@@ -45,3 +50,10 @@
 					font-size "45"
 					font (+ "'" font-name "'")))))))
   (setf (@ (chain document (get-element-by-id "test")) style font-family) (+ "'" font-name "'")))
+
+;;websockets
+(defun init-ws ()
+  (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
+    (setf (@ ws onmessage) (lambda (event)
+			     (draw-lines (@ event data))))
+    ws))

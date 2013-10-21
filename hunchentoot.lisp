@@ -15,7 +15,7 @@
     (cl-fad:copy-file path (make-pathname :name name :defaults bukvonesis-config:*temp-directory*) :overwrite t)
     (format nil "/tmp/~a" name)))
 
-(defun start-server ()
+(defun start-hunchentoot ()
   (setf *show-lisp-errors-p* t
 	*show-lisp-backtraces-p* t
 	*break-on-signals* nil)
@@ -40,4 +40,5 @@
 
   (setf *httpd* (make-instance 'hunchentoot:easy-acceptor :port 9081))
   (start *httpd*))
+  
 

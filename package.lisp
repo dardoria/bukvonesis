@@ -12,7 +12,7 @@
 
 ;;;; bukvonesis
 (defpackage :bukvonesis
-  (:use :cl :lparallel :lparallel.queue :ponon :hunchentoot :cl-who :parenscript)
+  (:use :cl :lparallel :lparallel.queue :ponon :hunchentoot :parenscript :clws)
   (:shadowing-import-from :parenscript :chain))
 
 (in-package :bukvonesis)
