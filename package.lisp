@@ -18,10 +18,6 @@
 
 ;;todo this doesn't belong here
 (in-package :bukvonesis)
-
-(defpsmacro $ ((selector) &body body)
-  `(chain (@ ($ ,selector)) ,@body))
-
 (defpsmacro $$ ((selector event-binding) &body body)
   `((@ ($ ,selector) ,event-binding) (lambda () ,@body)))
 

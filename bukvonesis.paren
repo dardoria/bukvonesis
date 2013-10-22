@@ -43,7 +43,7 @@
 	(prompt-for-letter)))))
 
 (defun prompt-for-letter ()
-  (chain (@ ($  ("#mainMenu")) (replace-with "<h1 id='test'>Type a letter to generate</h1>"))))
+  (chain (@ ($  "#mainMenu")) (replace-with "<h1 id='test'>Type a letter to generate</h1>")))
 
   ;; (let ((sample-text (new (*point-text (create 
   ;; 					point (array 50 50)
