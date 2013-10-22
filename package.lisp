@@ -15,11 +15,16 @@
   (:use :cl :lparallel :lparallel.queue :ponon :hunchentoot :parenscript :clws)
   (:shadowing-import-from :parenscript :chain))
 
+
+;;todo this doesn't belong here
 (in-package :bukvonesis)
 
-(defmacro $$ ((selector event-binding) &body body)
+(defpsmacro $ ((selector) &body body)
+  `(chain (@ ($ ,selector)) ,@body))
+
+(defpsmacro $$ ((selector event-binding) &body body)
   `((@ ($ ,selector) ,event-binding) (lambda () ,@body)))
 
-(defmacro console.log (thing)
+(defpsmacro console.log (thing)
   `(chain console (log ,thing)))
 

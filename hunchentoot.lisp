@@ -2,9 +2,6 @@
 
 (defparameter *httpd* nil)
 
-(defun index.html ()
-  (bukvonesis.html:index))
-
 (defun bukvonesis.js ()
   (with-open-file (out (merge-pathnames (make-pathname :name "bukvonesis" :type "js" :directory '(:relative "js")) bukvonesis-config:*base-directory*) :direction :output :if-exists :supersede :if-does-not-exist :create)
     (princ (ps:ps-compile-file (merge-pathnames bukvonesis-config:*base-directory* "bukvonesis.paren")) out)))
@@ -20,9 +17,8 @@
 	*show-lisp-backtraces-p* t
 	*break-on-signals* nil)
 
-  ;;compile js and html templates
+  ;;compile js
   (bukvonesis.js)
-  (closure-template:compile-template :common-lisp-backend (merge-pathnames "bukvonesis.soy" bukvonesis-config:*base-directory*))
 
   ;;routes  
   (setf *dispatch-table* 
@@ -32,7 +28,7 @@
 	      (create-folder-dispatcher-and-handler "/fonts/" (cl-fad:merge-pathnames-as-directory bukvonesis-config:*base-directory* "font/"))
 	      (create-folder-dispatcher-and-handler "/tmp/" (cl-fad:merge-pathnames-as-directory bukvonesis-config:*base-directory* "tmp/") "font/truetype")
 	      (create-prefix-dispatcher "/font-upload" 'font-upload)
-	      (create-prefix-dispatcher "/" 'index.html)))
+	      (create-static-file-dispatcher-and-handler "/" (cl-fad:merge-pathnames-as-file bukvonesis-config:*base-directory* "index.html"))))
 
   (when *httpd*
     (stop *httpd*)

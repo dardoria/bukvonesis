@@ -38,18 +38,20 @@
 						(@ xhr response-text)
 						"')}"))	      
 	  (chain (@  ($ (chain document head))) (append font-face)))
-	(display-sample-text)))))
+	;;apply the font to the canvas to force load it.
+	(setf (@ (chain document (get-element-by-id "test")) style font-family) (+ "'" font-name "'"))
+	(prompt-for-letter)))))
 
+(defun prompt-for-letter ()
+  (chain (@ ($  ("#mainMenu")) (replace-with "<h1 id='test'>Type a letter to generate</h1>"))))
 
+  ;; (let ((sample-text (new (*point-text (create 
+  ;; 					point (array 50 50)
+  ;; 					content "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  ;; 					fill-color "black"
+  ;; 					font-size "45"
+  ;; 					font (+ "'" font-name "'"))))))))
 
-(defun display-sample-text ()
-  (let ((sample-text (new (*point-text (create 
-					point (array 50 50)
-					content "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-					fill-color "black"
-					font-size "45"
-					font (+ "'" font-name "'")))))))
-  (setf (@ (chain document (get-element-by-id "test")) style font-family) (+ "'" font-name "'")))
 
 ;;websockets
 (defun init-ws ()
