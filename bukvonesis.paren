@@ -7,18 +7,19 @@
 
 ;;setup the canvas
 ($$ (document ready)
-  (chain paper (setup "bukvonesis"))
+    ;; setup paper.js
+    (chain paper (setup "bukvonesis"))
+    ;; setup websockets
+    (setf ws-client (init-ws))
 
-  ($$ ("#font-selector" change)
-    (upload-file (@ ($ this) 0 files 0)))
-
-  (setf ws-client (init-ws)))
-
+    ;; event handlers
+    ($$ ("#font-selector" change)
+	(upload-file (@ ($ this) 0 files 0))))
 
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
 	(form-data (new (*form-data))))
-    
+
     (setf font-name (@ file name))
     (setf (@ xhr onreadystatechange) (on-font-upload xhr))
     (chain form-data (append "fontfile" file))
@@ -26,36 +27,54 @@
     (chain xhr (send form-data))))
 
 (defun on-font-upload (xhr)
-  (lambda () 
+  (lambda ()
     (console.log xhr)
     (when (equal (@ xhr ready-state) 4)
       (when (equal (@ xhr status) 200)
 	(let ((font-face (chain document (create-element "style"))))
 	  (chain font-face (set-attribute "type" "text/css"))
-	  (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: " 
-						"'"font-name"'" 
-						";  src: url('" 
+	  (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: "
+						"'"font-name"'"
+						";  src: url('"
 						(@ xhr response-text)
-						"')}"))	      
+						"')}"))
 	  (chain (@  ($ (chain document head))) (append font-face)))
-	;;apply the font to the canvas to force load it.
-	(setf (@ (chain document (get-element-by-id "test")) style font-family) (+ "'" font-name "'"))
 	(prompt-for-letter)))))
 
 (defun prompt-for-letter ()
-  (chain (@ ($  "#mainMenu")) (replace-with "<h1 id='test'>Type a letter to generate</h1>")))
+  (chain (@ ($ "#mainMenu")) (empty))
+  (display-font-sample)
+  (chain (@ ($ "#mainMenu")) (append "<h1>Type a letter to generate</h1>"))
 
-  ;; (let ((sample-text (new (*point-text (create 
-  ;; 					point (array 50 50)
-  ;; 					content "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  ;; 					fill-color "black"
-  ;; 					font-size "45"
-  ;; 					font (+ "'" font-name "'"))))))))
+  ((@ ($ document) keypress)
+   (lambda (event)
+     (on-key-pressed event))))
 
+(defun display-font-sample ()
+    (chain (@ ($ "#mainMenu")) (append (+ "<h1 id='fontSample'>ABCDEEFGIJKLMNOPQRSTUVWXYZ </br> abcdefghijklmnopqrstuvwxyz</h1>")))
+    (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" font-name "'")))
+
+(defun on-key-pressed (event)
+  (chain (@ ($ "#mainMenu")) (empty))
+  (clear-canvas)
+
+  (let ((text (new (*point-text (create
+				 content (chain *string (from-char-code (@ event which)))
+				 fill-color "black"
+				 font (+ "'" font-name "'"))))))
+    (chain text (fit-bounds (@ view bounds)))
+    (chain text (scale 0.8)))
+  (chain view (draw))
+
+  (chain ws-client (send (@ event which))))
+
+(defun clear-canvas ()
+  (when (chain project active-layer (has-children))
+    (chain project active-layer (remove-children))))
 
 ;;websockets
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
-    (setf (@ ws onmessage) (lambda (event)
-			     (draw-lines (@ event data))))
+;    (setf (@ ws onmessage) (lambda (event)
+;			     (draw-lines (@ event data))))
     ws))
