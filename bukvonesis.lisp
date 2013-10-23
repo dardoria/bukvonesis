@@ -6,67 +6,28 @@
 (defparameter *worker-count* 20)
 (defparameter *message-queue* nil)
 
-(defclass font-app (base-app)
+(defclass font-app ()
   ((font-loader :accessor font-loader)
    (bukva :accessor bukva :writer (setf bukva))
    (glyph :accessor glyph)
    (candidate :accessor candidate :initform '())))
 
-(defmethod setup ((app font-app))
-  (set-background 0.0 0.0 0.0))
-
-;(defmethod update ((app font-app))
-  ;;TODO collect curves to show realtime prgress
-;  (let ((candidate (try-pop-queue *message-queue*)))
-;    (when candidate 
-;      (setf (candidate app) (push candidate (candidate app))))))
-;)
-
-(defmethod draw ((app font-app))
-  (clear)
-  (set-color 0.2 0.7 0.1)
-  (draw-string (font-loader app) (bukva app) 2000 -3500 :filled nil :size 250)
-
-  (with-state
-    ;;TODO no magick numbers
-    (scale 125/1024 (* 125/1024 -1) 125/1024)
-    (translate 2000 -3500 0)
-
-    (when (candidate app)
-      (progn
-	(set-color 0.7 0.2 0.1)
-	(loop for curve in (candidate app)
-	   do (if (and (= (row-major-aref curve 3) 0)
-		       (= (row-major-aref curve 4) 0))
-		  (draw-line (row-major-aref curve 0) (row-major-aref curve 1)
-			     (row-major-aref curve 6) (row-major-aref curve 7))
-		  (draw-curve curve)))))))
-
-(defmethod exit ((app font-app))
-  (zpb-ttf:close-font-loader (font-loader app))
-  (kill-tasks :default))
-
-(defmethod key-pressed ((app font-app) key)
-  (case key
-    (#\r
-     (main-loop app *worker-count*))))
-
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
-  (setf (slot-value app 'glyph) 
+  (setf (slot-value app 'glyph)
 	(zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
 
-(defun bukvo-start ()
+(defun bukvo-start (bukva font-path)
   ;;setup drawing window
   (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700)))
     #+darwin
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
     #+(and unix (not darwin))
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
-    
+
 ;    (setf (bukva app) "S")
     (setf (bukva app) "Б")
-    
+
     (setf *message-queue* (make-queue))
 
     (main-loop app *worker-count*)
@@ -118,7 +79,7 @@
  	      (return))
 
 	    (push-queue (coords->curve best-candidate) message-queue))
-	 
+
        ;; selection
        do (let ((total-score (float (reduce '+ scores))))
 	    (setf population
@@ -166,7 +127,7 @@
   (let ((cross-point (random 6))) ;; 3 points * 2 coordinates
     (append (subseq parent1 0 cross-point)
 	    (subseq parent2 cross-point))))
-	   
+
 
 (defun mutate (chromosome mutation-probability)
 ;;TODO fix mutation
@@ -197,7 +158,7 @@ chromosome
 
 (defun coords-distance (candidate start ctrl end)
   (let ((score 0))
-    (unless ctrl 
+    (unless ctrl
       (setf ctrl (zpb-ttf::make-control-point 0 0 nil)))
 
     (incf score (distance-squared (zpb-ttf:x start) (zpb-ttf:y start)
@@ -215,7 +176,7 @@ chromosome
 
 (defun get-best-chromosome-index (scores)
   (loop for score in scores
-     for i from 0 
+     for i from 0
      with current = 0
      with index = 0
      do (when (> score current)

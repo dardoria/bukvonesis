@@ -13,7 +13,6 @@
   (format t "Client disconnected from resource ~A: ~A~%" resource client))
 
 (defmethod resource-received-text ((res bukvonesis-resource) client message)
-  (format t "got frame ~s from client ~s" message client)
   (write-to-client-text client message))
 
 (defmethod resource-received-binary((res bukvonesis-resource) client message)
@@ -28,7 +27,7 @@
   (register-global-resource "/bukvonesis"
 			    (make-instance 'bukvonesis-resource)
 			    (origin-prefix "http://127.0.0.1" "http://localhost"))
-  
+
   (bordeaux-threads:make-thread (lambda ()
 				  (run-resource-listener
 				   (find-global-resource "/bukvonesis")))
