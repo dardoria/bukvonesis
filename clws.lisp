@@ -13,7 +13,8 @@
   (format t "Client disconnected from resource ~A: ~A~%" resource client))
 
 (defmethod resource-received-text ((res bukvonesis-resource) client message)
-  (write-to-client-text client message))
+  (bukvo-start (code-char (gethash "letter-code" (yason:parse message))) nil)) ;;todo sanitize
+;(write-to-client-text client )
 
 (defmethod resource-received-binary((res bukvonesis-resource) client message)
   (format t "got binary frame ~s from client ~s" (length message) client)

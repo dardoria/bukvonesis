@@ -15,23 +15,21 @@
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
   (setf (slot-value app 'glyph)
-	(zpb-ttf:find-glyph (aref (bukva app) 0) (font-loader app))))
+	(zpb-ttf:find-glyph (bukva app) (font-loader app))))
 
-(defun bukvo-start (bukva font-path)
-  ;;setup drawing window
-  (let ((app (make-app 'font-app  :title "bukvonesis" :pos-x 100 :pos-y 100 :width 700 :height 700)))
+(defun bukvo-start (letter font-path)
+  (declare (ignore font-path))
+  (break "~a" letter)
+
+  (let ((app (make-instance 'font-app)))
     #+darwin
     (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
-    #+(and unix (not darwin))
-    (setf (font-loader app) (zpb-ttf:open-font-loader #P"/usr/share/fonts/truetype/ttf-droid/DroidSansMono.ttf"))
 
-;    (setf (bukva app) "S")
-    (setf (bukva app) "Б")
+    (setf (bukva app) letter)
 
     (setf *message-queue* (make-queue))
 
-    (main-loop app *worker-count*)
-    (run app)))
+    (main-loop app *worker-count*)))
 
 (defun main-loop (app worker-count)
   (unless *kernel*
@@ -101,7 +99,8 @@
        while (< finished-tasks-count segments-count))
     (setf (candidate app)
 	  (loop repeat finished-tasks-count
-	     collect (coords->curve (receive-result channel))))))
+	     collect (coords->curve (receive-result channel))))
+    (break "~a" (candidate app))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size max-coordinate-value straight-line-probability)

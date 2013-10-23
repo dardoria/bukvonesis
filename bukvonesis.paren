@@ -66,7 +66,7 @@
     (chain text (scale 0.8)))
   (chain view (draw))
 
-  (chain ws-client (send (@ event which))))
+  (send-letter (@ event which)))
 
 (defun clear-canvas ()
   (when (chain project active-layer (has-children))
@@ -75,6 +75,9 @@
 ;;websockets
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
-;    (setf (@ ws onmessage) (lambda (event)
-;			     (draw-lines (@ event data))))
+    (setf (@ ws onmessage) (lambda (event)
+			     (console.log (@ event data))))
     ws))
+
+(defun send-letter (letter-code)
+  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code))))))
