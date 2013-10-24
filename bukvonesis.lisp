@@ -9,20 +9,30 @@
   ((font-loader :accessor font-loader)
    (bukva :accessor bukva :writer (setf bukva))
    (glyph :accessor glyph)
-   (candidate :accessor candidate :initform '())
-   (progress-queue :accessor progress-queue)))
+   (result :accessor result :initform '())
+   (progress-queue :accessor progress-queue)
+   (on-progress :accessor on-progress)
+   (on-finish :accessor on-finish)))
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
   (setf (slot-value app 'glyph)
 	(zpb-ttf:find-glyph (bukva app) (font-loader app))))
 
-(defun bukvo-start (letter font-path)
+(defun (setf result) (result app)
+  (setf (slot-value app 'result) result)
+  (when (functionp (on-finish app))
+    (funcall (on-finish app) (result app))))
+
+(defun make-font-app (letter font-path)
   (let ((app (make-instance 'font-app)))
     (setf (font-loader app) (zpb-ttf:open-font-loader font-path))
     (setf (bukva app) letter)
     (setf (progress-queue app) (make-queue))
-    (main-loop app *worker-count*)))
+    app))
+
+(defun font-app-start (app)
+  (main-loop app *worker-count*))
 
 (defun main-loop (app worker-count)
   (unless *kernel*
@@ -90,7 +100,7 @@
        do (pop-queue control-queue)
        do (incf finished-tasks-count)
        while (< finished-tasks-count segments-count))
-    (setf (candidate app)
+    (setf (result app)
 	  (loop repeat finished-tasks-count
 	     collect (coords->curve (receive-result channel))))))
 
