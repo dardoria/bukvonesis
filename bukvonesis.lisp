@@ -4,13 +4,13 @@
 
 (defparameter *max-value* 90000000)
 (defparameter *worker-count* 20)
-(defparameter *message-queue* nil)
 
 (defclass font-app ()
   ((font-loader :accessor font-loader)
    (bukva :accessor bukva :writer (setf bukva))
    (glyph :accessor glyph)
-   (candidate :accessor candidate :initform '())))
+   (candidate :accessor candidate :initform '())
+   (progress-queue :accessor progress-queue)))
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
@@ -18,17 +18,10 @@
 	(zpb-ttf:find-glyph (bukva app) (font-loader app))))
 
 (defun bukvo-start (letter font-path)
-  (declare (ignore font-path))
-  (break "~a" letter)
-
   (let ((app (make-instance 'font-app)))
-    #+darwin
-    (setf (font-loader app) (zpb-ttf:open-font-loader #P"/Library/Fonts/Arial.ttf"))
-
+    (setf (font-loader app) (zpb-ttf:open-font-loader font-path))
     (setf (bukva app) letter)
-
-    (setf *message-queue* (make-queue))
-
+    (setf (progress-queue app) (make-queue))
     (main-loop app *worker-count*)))
 
 (defun main-loop (app worker-count)
@@ -43,7 +36,7 @@
     (zpb-ttf:do-contours (contour (glyph app))
       (zpb-ttf:do-contour-segments (start ctrl end) contour
 	(incf segments-count)
-	(submit-task channel 'evolve-curve start ctrl end *message-queue* control-queue)))
+	(submit-task channel 'evolve-curve start ctrl end (progress-queue app) control-queue)))
 
     (future (collect-results app control-queue channel segments-count))))
 
@@ -99,8 +92,7 @@
        while (< finished-tasks-count segments-count))
     (setf (candidate app)
 	  (loop repeat finished-tasks-count
-	     collect (coords->curve (receive-result channel))))
-    (break "~a" (candidate app))))
+	     collect (coords->curve (receive-result channel))))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size max-coordinate-value straight-line-probability)

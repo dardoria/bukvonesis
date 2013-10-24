@@ -80,4 +80,4 @@
     ws))
 
 (defun send-letter (letter-code)
-  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code))))))
+  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" font-name))))))

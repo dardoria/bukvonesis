@@ -13,7 +13,16 @@
   (format t "Client disconnected from resource ~A: ~A~%" resource client))
 
 (defmethod resource-received-text ((res bukvonesis-resource) client message)
-  (bukvo-start (code-char (gethash "letter-code" (yason:parse message))) nil)) ;;todo sanitize
+  (let* ((json-message (yason:parse message)) ;;todo sanitize?
+	 (letter-code (gethash "letter-code" json-message))
+	 (font-name (gethash "font-name" json-message)))
+
+    (when (and letter-code font-name)
+      (let ((font-path
+	     (cl-fad:merge-pathnames-as-file bukvonesis-config:*temp-directory*
+					     (pathname-name (pathname font-name))))) ;;TODO do not get filename from client but from session
+	(when (cl-fad:file-exists-p font-path)
+	  (bukvo-start (code-char letter-code) font-path))))))
 ;(write-to-client-text client )
 
 (defmethod resource-received-binary((res bukvonesis-resource) client message)
