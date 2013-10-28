@@ -28,7 +28,6 @@
 
 (defun on-font-upload (xhr)
   (lambda ()
-    (console.log xhr)
     (when (equal (@ xhr ready-state) 4)
       (when (equal (@ xhr status) 200)
 	(let ((font-face (chain document (create-element "style"))))
@@ -72,11 +71,19 @@
   (when (chain project active-layer (has-children))
     (chain project active-layer (remove-children))))
 
+(defun draw-line (coords-array)
+  (loop for line across coords-array
+     do (let ((path (make-paper-object *path (create stroke-color "red"))))
+	  (loop for i from 0 to 5 by 2
+	     do (chain path (add (make-paper-object *point (aref line i) (- (@ view bounds height) (aref line (+ i 1)))))))
+	  (chain path (smooth)))
+       (chain view (draw))))
+
 ;;websockets
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
     (setf (@ ws onmessage) (lambda (event)
-			     (console.log (@ event data))))
+			     (draw-line (chain $ (parse-j-s-o-n (@ event data))))))
     ws))
 
 (defun send-letter (letter-code)

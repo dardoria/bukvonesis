@@ -11,8 +11,8 @@
    (glyph :accessor glyph)
    (result :accessor result :initform '())
    (progress-queue :accessor progress-queue)
-   (on-progress :accessor on-progress)
-   (on-finish :accessor on-finish)))
+   (on-progress :accessor on-progress :initform nil)
+   (on-finish :accessor on-finish :initform nil)))
 
 (defun (setf bukva) (bukva app)
   (setf (slot-value app 'bukva) bukva)
@@ -22,9 +22,12 @@
 (defun (setf result) (result app)
   (setf (slot-value app 'result) result)
   (when (functionp (on-finish app))
-    (funcall (on-finish app) (result app))))
+    (funcall (on-finish app) (result app)))
 
-(defun make-font-app (letter font-path)
+  (zpb-ttf:close-font-loader (font-loader app))
+  (kill-tasks :default))
+
+(Defun make-font-app (letter font-path)
   (let ((app (make-instance 'font-app)))
     (setf (font-loader app) (zpb-ttf:open-font-loader font-path))
     (setf (bukva app) letter)
@@ -48,6 +51,7 @@
 	(incf segments-count)
 	(submit-task channel 'evolve-curve start ctrl end (progress-queue app) control-queue)))
 
+    (future (report-progress app segments-count))
     (future (collect-results app control-queue channel segments-count))))
 
 (defun evolve-curve (start control end message-queue control-queue)
@@ -79,7 +83,7 @@
 	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
  	      (return))
 
-	    (push-queue (coords->curve best-candidate) message-queue))
+	    (push-queue best-candidate message-queue))
 
        ;; selection
        do (let ((total-score (float (reduce '+ scores))))
@@ -90,9 +94,21 @@
 					 (parent2 (select population scores total-score)))
 				     ;; crossover and mutation
 				     (mutate (crossover parent1 parent2) mutation-probability)))))))
-;    (format t "~a, ~a, ~a, ~a, ~a ~%" (- *max-value* best-score) start control end best-candidate)
     (push-queue 1 control-queue)
     best-candidate))
+
+(defun report-progress (app segments-count)
+  (let ((finished-tasks-count 0))
+    (loop
+       with result = nil
+       do (setf result (try-pop-queue (progress-queue app)))
+       do (incf finished-tasks-count)
+       while result
+       collect result into result-list
+       do (when (and (= (mod finished-tasks-count segments-count) 0)
+		     (functionp (on-progress app)))
+	    (funcall (on-progress app) result-list))
+       do (setf result-list nil))))
 
 (defun collect-results (app control-queue channel segments-count)
   (let ((finished-tasks-count 0))
@@ -102,7 +118,7 @@
        while (< finished-tasks-count segments-count))
     (setf (result app)
 	  (loop repeat finished-tasks-count
-	     collect (coords->curve (receive-result channel))))))
+	     collect (receive-result channel)))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size max-coordinate-value straight-line-probability)
@@ -151,11 +167,11 @@ chromosome
 		   (T
 		    (random range)))))
 
-(defun coords->curve (coords)
-  "Coords is a list consiting of 3 control points, represented by x,y pairs. Returns an array of coordinates. Each coordinate is an array of x,y,z coordinates. Z is always zero."
-  (make-array '(3 3) :initial-contents
-	      (loop for i below (- (length coords) 1) by 2
-		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
+;; (defun coords->curve (coords)
+;;   "Coords is a list consiting of 3 control points, represented by x,y pairs. Returns an array of coordinates. Each coordinate is an array of x,y,z coordinates. Z is always zero."
+;;   (make-array '(3 3) :initial-contents
+;; 	      (loop for i below (- (length coords) 1) by 2
+;; 		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
 
 (defun coords-distance (candidate start ctrl end)
   (let ((score 0))

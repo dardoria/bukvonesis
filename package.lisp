@@ -4,7 +4,7 @@
 ;;;; bukvonesis config
 (defpackage :bukvonesis-config (:export :*base-directory* :*temp-directory*))
 
-(defparameter bukvonesis-config:*base-directory* 
+(defparameter bukvonesis-config:*base-directory*
   (make-pathname :name nil :type nil :defaults #.(or *compile-file-truename* *load-truename*)))
 
 (defparameter bukvonesis-config:*temp-directory*
@@ -12,7 +12,7 @@
 
 ;;;; bukvonesis
 (defpackage :bukvonesis
-  (:use :cl :lparallel :lparallel.queue :ponon :hunchentoot :parenscript :clws)
+  (:use :cl :lparallel :lparallel.queue :hunchentoot :parenscript :clws)
   (:shadowing-import-from :parenscript :chain))
 
 
@@ -24,3 +24,5 @@
 (defpsmacro console.log (thing)
   `(chain console (log ,thing)))
 
+(defpsmacro make-paper-object (thing &body body)
+  `(new (chain paper (,thing ,@body))))
