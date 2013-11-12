@@ -72,10 +72,13 @@
     (chain project active-layer (remove-children))))
 
 (defun draw-line (coords-array)
+  (console.log coords-array)
   (loop for line across coords-array
      do (let ((path (make-paper-object *path (create stroke-color "red"))))
 	  (loop for i from 0 to 5 by 2
-	     do (chain path (add (make-paper-object *point (aref line i) (- (@ view bounds height) (aref line (+ i 1)))))))
+	     do (unless (and (or (= i 2) (= i 3))
+			     (= (aref line 2) 0) (= (aref line 3) 0))
+		  (chain path (add (make-paper-object *point (aref line i) (- (@ view bounds height) (aref line (+ i 1))))))))
 	  (chain path (smooth)))
        (chain view (draw))))
 
