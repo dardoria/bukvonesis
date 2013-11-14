@@ -20,6 +20,7 @@
 	(zpb-ttf:find-glyph (bukva app) (font-loader app))))
 
 (defun (setf result) (result app)
+  (format t "~a" result)
   (setf (slot-value app 'result) result)
   (when (functionp (on-finish app))
     (funcall (on-finish app) (result app)))
@@ -167,12 +168,6 @@ chromosome
 		   (T
 		    (random range)))))
 
-;; (defun coords->curve (coords)
-;;   "Coords is a list consiting of 3 control points, represented by x,y pairs. Returns an array of coordinates. Each coordinate is an array of x,y,z coordinates. Z is always zero."
-;;   (make-array '(3 3) :initial-contents
-;; 	      (loop for i below (- (length coords) 1) by 2
-;; 		 collect (list (elt coords i) (elt coords (+ 1 i)) 0))))
-
 (defun coords-distance (candidate start ctrl end)
   (let ((score 0))
     (unless ctrl
@@ -206,3 +201,35 @@ chromosome
 (defun get-max-coords-value (start end)
   (float (max (zpb-ttf:x start) (zpb-ttf:y start)
 	      (zpb-ttf:x end) (zpb-ttf:y end))))
+
+;(let ((glyph (zpb-ttf:find-glyph #\Б (zpb-ttf:open-font-loader "/Library/Fonts/Arial.ttf"))))
+
+(defun fix-curve-endpoints (glyph curves)
+  (let ((index 0)
+	(contour-start-index 0)
+	(curves-count (list-length curves)))
+
+    (zpb-ttf:do-contours (contour glyph)
+      (setf contour-start-index index)
+      (setf index 0)
+      (zpb-ttf:do-contour-segments (start ctrl end) contour
+	(when (< index (- curves-count 1))
+	  (let ((curve-one (nth index curves)) ;todo displace by contour-start-index
+		(curve-two (nth (+ index 1) curves))) ;todo when the contour ends this must be the first curve in the contour
+	    (multiple-value-bind (x y)
+		(get-closest-point (fourth curve-one) (fifth curve-one)
+				   (first curve-two) (second curve-two) end)
+	      (format t "~a, ~a~%" x y))))
+	(incf index)))))
+
+			; get segment last point
+	     ; get last point from current and first point from next curve
+	     ; decide which is better and use it
+	     ; return a new list of (x y x y x y) (x y x y)
+
+(defun get-closest-point (point-one-x point-one-y point-two-x point-two-y target)
+  (let ((score-one (distance-squared point-one-x point-one-y (zpb-ttf:x target) (zpb-ttf:y target)))
+	(score-two (distance-squared point-two-x point-two-x (zpb-ttf:x target) (zpb-ttf:y target))))
+    (if (< score-one score-two)
+	(values point-one-x point-one-y)
+	(values point-two-x point-two-y))))
