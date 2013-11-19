@@ -73,14 +73,41 @@
 
 (defun draw-line (coords-array)
   (console.log coords-array)
-  (loop for line across coords-array
-     do (let ((path (make-paper-object *path (create stroke-color "red"))))
-	  (loop for i from 0 to 5 by 2
-	     do (unless (and (or (= i 2) (= i 3))
-			     (= (aref line 2) 0) (= (aref line 3) 0))
-		  (chain path (add (make-paper-object *point (aref line i) (- (@ view bounds height) (aref line (+ i 1))))))))
-	  (chain path (smooth)))
-       (chain view (draw))))
+  (loop for segment across coords-array
+     do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
+	       ;;add straight line
+	       (let ((path (make-paper-object *path (create stroke-color "red"))))
+		 (loop for i from 0 to 5 by 2
+		    do (unless (or (= i 2) (= i 3))
+			 (chain path (add (make-paper-object *point (aref segment i) (- (@ view bounds height) (aref segment (+ i 1))))))))))
+	      (T
+	       ;;add curve
+	       ;;todo this doesn't work, instead of converting to cubic curves, calculate the tangents at first and last point and use them to create handles and segments
+	       (let ((cubic (to-cubic segment))
+		     ;;todo this doesn't work, calculate curve tangents
+		     (curve (make-paper-object *curve
+					       (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
+					       (make-paper-object *point (aref segment 2) (- (@ view bounds height) (aref segment 3)))
+					       (make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
+					       (make-paper-object *point (aref segment 7) (- (@ view bounds height) (aref segment 7))))))))))
+  (chain view (draw)))
+
+;;Convert a quadratic bezier curve to cubic
+(defun to-cubic (curve)
+  (let ((cubic (make-array 8)))
+    ;;start x, start y
+    (setf (aref cubic 0) (aref curve 0))
+    (setf (aref cubic 1) (aref curve 1))
+    ;;control x1, control y1
+    (setf (aref cubic 2) (+ (aref curve 0) (* (/ 2.0 3.0) (- (aref curve 2) (aref curve 0)))))
+    (setf (aref cubic 3) (+ (aref curve 1) (* (/ 2.0 3.0) (- (aref curve 3) (aref curve 1)))))
+    ;control x2, control y2
+    (setf (aref cubic 4) (+ (aref curve 4) (* (/ 2.0 3.0) (- (aref curve 2) (aref curve 4)))))
+    (setf (aref cubic 5) (+ (aref curve 5) (* (/ 2.0 3.0) (- (aref curve 3) (aref curve 5)))))
+    ;end x, end y
+    (setf (aref cubic 6) (aref curve 5))
+    (setf (aref cubic 7) (aref curve 5)))
+  cubic)
 
 ;;websockets
 (defun init-ws ()

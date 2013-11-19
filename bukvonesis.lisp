@@ -201,35 +201,3 @@ chromosome
 (defun get-max-coords-value (start end)
   (float (max (zpb-ttf:x start) (zpb-ttf:y start)
 	      (zpb-ttf:x end) (zpb-ttf:y end))))
-
-;(let ((glyph (zpb-ttf:find-glyph #\Б (zpb-ttf:open-font-loader "/Library/Fonts/Arial.ttf"))))
-
-(defun fix-curve-endpoints (glyph curves)
-  (let ((index 0)
-	(contour-start-index 0)
-	(curves-count (list-length curves)))
-
-    (zpb-ttf:do-contours (contour glyph)
-      (setf contour-start-index index)
-      (setf index 0)
-      (zpb-ttf:do-contour-segments (start ctrl end) contour
-	(when (< index (- curves-count 1))
-	  (let ((curve-one (nth index curves)) ;todo displace by contour-start-index
-		(curve-two (nth (+ index 1) curves))) ;todo when the contour ends this must be the first curve in the contour
-	    (multiple-value-bind (x y)
-		(get-closest-point (fourth curve-one) (fifth curve-one)
-				   (first curve-two) (second curve-two) end)
-	      (format t "~a, ~a~%" x y))))
-	(incf index)))))
-
-			; get segment last point
-	     ; get last point from current and first point from next curve
-	     ; decide which is better and use it
-	     ; return a new list of (x y x y x y) (x y x y)
-
-(defun get-closest-point (point-one-x point-one-y point-two-x point-two-y target)
-  (let ((score-one (distance-squared point-one-x point-one-y (zpb-ttf:x target) (zpb-ttf:y target)))
-	(score-two (distance-squared point-two-x point-two-x (zpb-ttf:x target) (zpb-ttf:y target))))
-    (if (< score-one score-two)
-	(values point-one-x point-one-y)
-	(values point-two-x point-two-y))))
