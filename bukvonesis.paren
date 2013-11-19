@@ -85,12 +85,22 @@
 	       ;;todo this doesn't work, instead of converting to cubic curves, calculate the tangents at first and last point and use them to create handles and segments
 	       (let ((cubic (to-cubic segment))
 		     ;;todo this doesn't work, calculate curve tangents
-		     (curve (make-paper-object *curve
-					       (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
-					       (make-paper-object *point (aref segment 2) (- (@ view bounds height) (aref segment 3)))
-					       (make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
-					       (make-paper-object *point (aref segment 7) (- (@ view bounds height) (aref segment 7))))))))))
+		     (curve (make-paper-object *path (create stroke-color "red"))))
+		 (chain curve (add (make-paper-object *segment (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
+						     nil
+						     (get-derivative segment 0))))
+		 (chain curve (add (make-paper-object *segment
+						     (make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
+						     (get-derivative segment 1)
+						     nil)))))))
   (chain view (draw)))
+
+(defun get-derivative (curve t1)
+  (let ((x (+ (* 2 (- 1 t1) (- (aref curve 2) (aref curve 0)))
+	      (* 2 t1 (- (aref curve 4) (aref curve 2)))))
+	(y (+ (* 2 (- 1 t1) (- (aref curve 3) (aref curve 1)))
+	      (* 2 t1 (- (aref curve 5) (aref curve 3))))))
+    (make-paper-object *point x y)))
 
 ;;Convert a quadratic bezier curve to cubic
 (defun to-cubic (curve)
