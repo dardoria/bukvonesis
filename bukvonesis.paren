@@ -2,20 +2,6 @@
 (defvar font-name nil)
 (defvar ws-client nil)
 
-;;inject paper.js in the global scope
-(chain paper (install window))
-
-;;setup the canvas
-($$ (document ready)
-    ;; setup paper.js
-    (chain paper (setup "bukvonesis"))
-    ;; setup websockets
-    (setf ws-client (init-ws))
-
-    ;; event handlers
-    ($$ ("#font-selector" change)
-	(upload-file (@ ($ this) 0 files 0))))
-
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
 	(form-data (new (*form-data))))
@@ -67,34 +53,6 @@
 
   (send-letter (@ event which)))
 
-(defun clear-canvas ()
-  (when (chain project active-layer (has-children))
-    (chain project active-layer (remove-children))))
-
-(defun draw-line (coords-array)
-  (console.log coords-array)
-  (loop for segment across coords-array
-     do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
-	       ;;add straight line
-	       (let ((path (make-paper-object *path (create stroke-color "red"))))
-		 (loop for i from 0 to 5 by 2
-		    do (unless (or (= i 2) (= i 3))
-			 (chain path (add (make-paper-object *point (aref segment i) (- (@ view bounds height) (aref segment (+ i 1))))))))))
-	      (T
-	       ;;add curve
-	       ;;todo this doesn't work, instead of converting to cubic curves, calculate the tangents at first and last point and use them to create handles and segments
-	       (let ((cubic (to-cubic segment))
-		     ;;todo this doesn't work, calculate curve tangents
-		     (curve (make-paper-object *path (create stroke-color "red"))))
-		 (chain curve (add (make-paper-object *segment (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
-						     nil
-						     (get-derivative segment 0))))
-		 (chain curve (add (make-paper-object *segment
-						     (make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
-						     (get-derivative segment 1)
-						     nil)))))))
-  (chain view (draw)))
-
 (defun get-derivative (curve t1)
   (let ((x (+ (* 2 (- 1 t1) (- (aref curve 2) (aref curve 0)))
 	      (* 2 t1 (- (aref curve 4) (aref curve 2)))))
@@ -128,3 +86,46 @@
 
 (defun send-letter (letter-code)
   (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" font-name))))))
+
+;;font app
+(defun font-app (processing)
+  (setf (@ this coords-array) nil)
+
+  (setf (@ processing draw)
+	(lambda ()
+	  (when (@ this coords-array)
+	    (loop for segment across coords-array
+	       do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
+			 ;;add straight line
+			 (let ((path (make-paper-object *path (create stroke-color "red"))))
+			   (loop for i from 0 to 5 by 2
+			      do (unless (or (= i 2) (= i 3))
+				   (chain path (add (make-paper-object *point (aref segment i) (- (@ view bounds height) (aref segment (+ i 1))))))))))
+			(T
+			 ;;add curve
+			 ;;todo this doesn't work, instead of converting to cubic curves, calculate the tangents at first and last point and use them to create handles and segments
+			 (let ((cubic (to-cubic segment))
+			       ;;todo this doesn't work, calculate curve tangents
+			       (curve (make-paper-object *path (create stroke-color "red"))))
+			   (chain curve (add (make-paper-object *segment (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
+								nil
+								(get-derivative segment 0))))
+			   (chain curve (add (make-paper-object *segment
+								(make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
+								(get-derivative segment 1)
+								nil)))))))
+	  ))))
+
+;;main
+(defvar processing-instance nil)
+
+($$ (document ready)
+    ;; setup processing.js
+    (setf processing-instance (new (*Processing "bukvonesis" font-app)))
+
+    ;; setup websockets
+    (setf ws-client (init-ws))
+
+    ;; event handlers
+    ($$ ("#font-selector" change)
+	(upload-file (@ ($ this) 0 files 0))))
