@@ -26,3 +26,6 @@
 
 (defpsmacro make-paper-object (thing &body body)
   `(new (chain paper (,thing ,@body))))
+
+(defpsmacro proc-setf (name value)
+  `(setf (@ processing-instance ,name) ,value))

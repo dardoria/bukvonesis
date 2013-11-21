@@ -1,12 +1,12 @@
 (in-package :bukvonesis)
-(defvar font-name nil)
+
 (defvar ws-client nil)
 
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
 	(form-data (new (*form-data))))
 
-    (setf font-name (@ file name))
+    (proc-setf bukvonesis-font-name (@ file name))
     (setf (@ xhr onreadystatechange) (on-font-upload xhr))
     (chain form-data (append "fontfile" file))
     (chain xhr (open "POST" "font-upload"))
@@ -19,7 +19,7 @@
 	(let ((font-face (chain document (create-element "style"))))
 	  (chain font-face (set-attribute "type" "text/css"))
 	  (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: "
-						"'"font-name"'"
+						"'" (@ processing-instance bukvonesis-font-name)"'"
 						";  src: url('"
 						(@ xhr response-text)
 						"')}"))
@@ -37,21 +37,14 @@
 
 (defun display-font-sample ()
     (chain (@ ($ "#mainMenu")) (append (+ "<h1 id='fontSample'>ABCDEEFGIJKLMNOPQRSTUVWXYZ </br> abcdefghijklmnopqrstuvwxyz</h1>")))
-    (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" font-name "'")))
+    (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" (@ processing-instance bukvonesis-font-name) "'")))
 
 (defun on-key-pressed (event)
+  ;;todo unbind event handler
   (chain (@ ($ "#mainMenu")) (empty))
-  (clear-canvas)
-
-  (let ((text (new (*point-text (create
-				 content (chain *string (from-char-code (@ event which)))
-				 fill-color "black"
-				 font (+ "'" font-name "'"))))))
-    (chain text (fit-bounds (@ view bounds)))
-    (chain text (scale 0.8)))
-  (chain view (draw))
-
+  (proc-setf bukvonesis-letter (chain *string (from-char-code (@ event which))))
   (send-letter (@ event which)))
+
 
 (defun get-derivative (curve t1)
   (let ((x (+ (* 2 (- 1 t1) (- (aref curve 2) (aref curve 0)))
@@ -85,15 +78,24 @@
     ws))
 
 (defun send-letter (letter-code)
-  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" font-name))))))
+  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" (@ processing-instance bukvonesis-font-name)))))))
 
 ;;font app
 (defun font-app (processing)
-  (setf (@ this coords-array) nil)
+  (setf (@ processing bukvonesis-coords-array) nil)
+  (setf (@ processing bukvonesis-font-name) nil)
+  (setf (@ processing bukvonesis-letter) nil)
 
   (setf (@ processing draw)
 	(lambda ()
-	  (when (@ this coords-array)
+
+	  ;;draw letter
+	  (when (and (@ processing bukvonesis-font-name)
+		     (@ processing bukvonesis-letter))
+	    (chain processing (text (@ processing bukvonesis-letter))))
+
+	  ;;draw generated coords
+	  (when (@ processing bukvonesis-coords-array)
 	    (loop for segment across coords-array
 	       do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
 			 ;;add straight line
