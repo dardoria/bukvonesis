@@ -36,7 +36,7 @@
      (on-key-pressed event))))
 
 (defun display-font-sample ()
-    (chain (@ ($ "#mainMenu")) (append (+ "<h1 id='fontSample'>ABCDEEFGIJKLMNOPQRSTUVWXYZ </br> abcdefghijklmnopqrstuvwxyz</h1>")))
+    (chain (@ ($ "#mainMenu")) (append (+ "<h1 id='fontSample'>ABCDEFFGHIJKLMNOPQRSTUVWXYZ </br> abcdefghijklmnopqrstuvwxyz</h1>")))
     (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" (@ processing-instance bukvonesis-font-name) "'")))
 
 (defun on-key-pressed (event)
@@ -86,13 +86,24 @@
   (setf (@ processing bukvonesis-font-name) nil)
   (setf (@ processing bukvonesis-letter) nil)
 
+  (setf (@ processing setup)
+	(lambda ()
+	  (p5 (frame-rate 12))
+	  (p5 (size 1900 1080)))) ;;todo no magick numbers
+
   (setf (@ processing draw)
 	(lambda ()
+	  (chain processing (background 255 255 255))
 
-	  ;;draw letter
+	  ;;Draw letter
 	  (when (and (@ processing bukvonesis-font-name)
 		     (@ processing bukvonesis-letter))
-	    (chain processing (text (@ processing bukvonesis-letter))))
+	    (setf fnt (p5 (load-font (@ processing bukvonesis-font-name))))
+	    (p5 (text-font fnt 400))
+	    (p5 (text-mode (@ processing *S-C-R-E-E-N)))
+	    (p5 (text-align (@ processing *C-E-N-T-E-R)))
+	    (p5 (fill 0))
+	    (p5 (text (@ processing bukvonesis-letter) 950 800))) ;;todo no magick numbers
 
 	  ;;draw generated coords
 	  (when (@ processing bukvonesis-coords-array)

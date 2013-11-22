@@ -29,3 +29,6 @@
 
 (defpsmacro proc-setf (name value)
   `(setf (@ processing-instance ,name) ,value))
+
+(defpsmacro p5 (&body body)
+  `(chain processing ,@body))
