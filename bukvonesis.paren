@@ -66,7 +66,7 @@
     (setf (aref cubic 4) (+ (aref curve 4) (* (/ 2.0 3.0) (- (aref curve 2) (aref curve 4)))))
     (setf (aref cubic 5) (+ (aref curve 5) (* (/ 2.0 3.0) (- (aref curve 3) (aref curve 5)))))
     ;end x, end y
-    (setf (aref cubic 6) (aref curve 5))
+    (setf (aref cubic 6) (aref curve 4))
     (setf (aref cubic 7) (aref curve 5)))
   cubic)
 
@@ -74,7 +74,8 @@
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
     (setf (@ ws onmessage) (lambda (event)
-			     (draw-line (chain $ (parse-j-s-o-n (@ event data))))))
+			     (console.log "tadam")
+			     (proc-setf bukvonesis-coords-array (chain *j-s-o-n (parse (@ event data))))))
     ws))
 
 (defun send-letter (letter-code)
@@ -89,7 +90,7 @@
   (setf (@ processing setup)
 	(lambda ()
 	  (p5 (frame-rate 12))
-	  (p5 (size 1900 1080)))) ;;todo no magick numbers
+	  (p5 (size 1900 1080 (@ processing *p3-d))))) ;;todo no magick numbers
 
   (setf (@ processing draw)
 	(lambda ()
@@ -107,27 +108,37 @@
 
 	  ;;draw generated coords
 	  (when (@ processing bukvonesis-coords-array)
-	    (loop for segment across coords-array
+	    (p5 (no-fill))
+	    (p5 (stroke 255 0 0))
+
+	    (p5 (translate 0 (@ processing height) 0)) ;;todo no magick numbers
+	    (p5 (rotate-x (p5 (radians 180))))
+	    (p5 (scale 0.2))
+
+	    (loop for segment across (@ processing bukvonesis-coords-array)
 	       do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
 			 ;;add straight line
-			 (let ((path (make-paper-object *path (create stroke-color "red"))))
-			   (loop for i from 0 to 5 by 2
-			      do (unless (or (= i 2) (= i 3))
-				   (chain path (add (make-paper-object *point (aref segment i) (- (@ view bounds height) (aref segment (+ i 1))))))))))
+			 (p5 (line (aref segment 0)
+				   (aref segment 1)
+				   0
+				   (aref segment 4)
+				   (aref segment 5)
+				   0)))
 			(T
 			 ;;add curve
-			 ;;todo this doesn't work, instead of converting to cubic curves, calculate the tangents at first and last point and use them to create handles and segments
-			 (let ((cubic (to-cubic segment))
-			       ;;todo this doesn't work, calculate curve tangents
-			       (curve (make-paper-object *path (create stroke-color "red"))))
-			   (chain curve (add (make-paper-object *segment (make-paper-object *point (aref segment 0) (- (@ view bounds height) (aref segment 1)))
-								nil
-								(get-derivative segment 0))))
-			   (chain curve (add (make-paper-object *segment
-								(make-paper-object *point (aref segment 4) (- (@ view bounds height) (aref segment 5)))
-								(get-derivative segment 1)
-								nil)))))))
-	  ))))
+			 (let ((cubic (to-cubic segment)))
+			   (p5 (bezier (aref cubic 0)
+			 	       (aref cubic 1)
+			 	       0
+			 	       (aref cubic 2)
+			 	       (aref cubic 3)
+			 	       0
+			 	       (aref cubic 4)
+			 	       (aref cubic 5)
+			 	       0
+			 	       (aref cubic 6)
+			 	       (aref cubic 7)
+			 	       0))))))))))
 
 ;;main
 (defvar processing-instance nil)
