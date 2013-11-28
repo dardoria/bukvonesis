@@ -166,7 +166,7 @@ chromosome
 			 (<= (random 1.0) straight-prob))
 		    0)
 		   (T
-		    (random range)))))
+		    (random range))))) ;;TODO if range is negative this will blow
 
 (defun coords-distance (candidate start ctrl end)
   (let ((score 0))
