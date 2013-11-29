@@ -6,7 +6,7 @@
   ())
 
 (defmethod resource-client-connected ((res bukvonesis-resource) client)
-  (format t "got connection on echo server from ~s : ~s~%" (client-host client) (client-port client))
+  (format t "got connection on bukvonesis server from ~s : ~s~%" (client-host client) (client-port client))
   t)
 
 (defmethod resource-client-disconnected ((resource bukvonesis-resource) client)

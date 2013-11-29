@@ -105,7 +105,7 @@
 ;	       (p5 (text-mode (p5-get *S-C-R-E-E-N)))
 	       (p5 (text-align (p5-get *C-E-N-T-E-R)))
 	       (p5 (fill 0))
-	       (p5 (text "ABCDfy" #|(p5-get bukvonesis-letter)|# (/ (p5-get width) 2) (/ (p5-get height) 2) 0)))
+	       (p5 (text (p5-get bukvonesis-letter) (/ (p5-get width) 2) (/ (p5-get height) 2) 0)))
 
 	     ;;draw generated coords
 	     (when (p5-get bukvonesis-coords-array)
@@ -113,9 +113,9 @@
 	       (p5 (stroke 255 0 0))
 
 	       (p5 (translate (/ (p5-get width) 2) (/ (p5-get height) 2) 0))
-	       (p5 (rotate-x (p5 (radians 180))))
-	       (p5 (scale 0.3))
+	       (p5 (scale 1 -1))
 
+	       (p5 (scale 0.3))
 	       (loop for segment across (p5-get bukvonesis-coords-array)
 		  do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
 			    ;;add straight line
