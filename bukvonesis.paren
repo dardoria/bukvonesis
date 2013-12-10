@@ -1,12 +1,18 @@
 (in-package :bukvonesis)
 
+(defvar paper nil)
+
+(defvar bukvonesis-coords-array nil)
+(defvar bukvonesis-font-name nil)
+(defvar bukvonesis-letter nil)
+
 (defvar ws-client nil)
 
 (defun upload-file (file)
   (let ((xhr (new (*x-m-l-http-request)))
 	(form-data (new (*form-data))))
 
-    (p5-setf bukvonesis-font-name (@ file name))
+    (setf bukvonesis-font-name (@ file name))
     (setf (@ xhr onreadystatechange) (on-font-upload xhr))
     (chain form-data (append "fontfile" file))
     (chain xhr (open "POST" "font-upload"))
@@ -19,7 +25,7 @@
 	(let ((font-face (chain document (create-element "style"))))
 	  (chain font-face (set-attribute "type" "text/css"))
 	  (setf (@ font-face inner-h-t-m-l)  (+ "@font-face { font-family: "
-						"'" (@ processing bukvonesis-font-name)"'"
+						"'" bukvonesis-font-name "'"
 						";  src: url('"
 						(@ xhr response-text)
 						"')}"))
@@ -37,21 +43,14 @@
 
 (defun display-font-sample ()
     (chain (@ ($ "#mainMenu")) (append (+ "<h1 id='fontSample'>ABCDEFFGHIJKLMNOPQRSTUVWXYZ </br> abcdefghijklmnopqrstuvwxyz</h1>")))
-    (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" (@ processing bukvonesis-font-name) "'")))
+    (setf (@ (chain document (get-element-by-id "fontSample")) style font-family) (+ "'" bukvonesis-font-name "'")))
 
 (defun on-key-pressed (event)
   ;;todo unbind event handler
   (chain (@ ($ "#mainMenu")) (empty))
-  (p5-setf bukvonesis-letter (chain *string (from-char-code (@ event which))))
+  (setf bukvonesis-letter (chain *string (from-char-code (@ event which))))
+  (draw-letter bukvonesis-letter)
   (send-letter (@ event which)))
-
-
-(defun get-derivative (curve t1)
-  (let ((x (+ (* 2 (- 1 t1) (- (aref curve 2) (aref curve 0)))
-	      (* 2 t1 (- (aref curve 4) (aref curve 2)))))
-	(y (+ (* 2 (- 1 t1) (- (aref curve 3) (aref curve 1)))
-	      (* 2 t1 (- (aref curve 5) (aref curve 3))))))
-    (make-paper-object *point x y)))
 
 ;;Convert a quadratic bezier curve to cubic
 (defun to-cubic (curve)
@@ -74,67 +73,39 @@
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
     (setf (@ ws onmessage) (lambda (event)
-			     (console.log "tadam")
-			     (p5-setf bukvonesis-coords-array (chain *j-s-o-n (parse (@ event data))))))
+			     (setf bukvonesis-coords-array (chain *j-s-o-n (parse (@ event data)))) ;;todo do I need bukvonesis-coords-array???
+			     (draw-coords bukvonesis-coords-array)))
     ws))
 
 (defun send-letter (letter-code)
-  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" (@ processing bukvonesis-font-name)))))))
+  (chain ws-client (send (chain *j-s-o-n (stringify (create "letter-code" letter-code "font-name" bukvonesis-font-name))))))
 
-;;font app
-(defun font-app (processing)
-  (p5-setf bukvonesis-coords-array nil)
-  (p5-setf bukvonesis-font-name nil)
-  (p5-setf bukvonesis-letter nil)
+;;raphael
+(defun draw-letter (letter)
+  (chain paper (text (/ (@ paper width) 2) (/ (@ paper height) 2) letter) (attr (create "font-family" (+ "'" bukvonesis-font-name "'")
+											"font-size" 400))))
 
-  (p5-setf setup
-	   (lambda ()
-	     (p5 (size 1140 715 (p5-get *p3-d))) ;;todo no magick numbers
-	     (p5 (frame-rate 12))))
+(defun draw-coords (coords-array)
+  (console.log "tadam")
+  (loop for segment across coords-array
+     do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
+	       ;;add straight line
+	       (chain paper (path (+ "M" (aref segment 0) " " (aref segment 1)
+				     "L" (aref segment 4) " " (aref segment 5)))
+		      (transform "S0.5,2,150,200"))))))
+	      ;; (T
+	      ;;  ;;add curve
+	      ;;  (let ((cubic (to-cubic segment)))
+	      ;; 	 (p5 (bezier (aref cubic 0) (aref cubic 1) 0
+	      ;; 		     (aref cubic 2) (aref cubic 3) 0
+	      ;; 		     (aref cubic 4) (aref cubic 5) 0
+	      ;; 		     (aref cubic 6) (aref cubic 7) 0)))))))
 
-
-  (p5-setf draw
-	   (lambda ()
-	     (p5 (background 255 255 255))
-
-	     ;;Draw letter
-	     (when (and (p5-get bukvonesis-font-name)
-			(p5-get bukvonesis-letter))
-	       (setf fnt (p5 (load-font (p5-get bukvonesis-font-name))))
-	       (p5 (text-font fnt 200))
-;	       (p5 (text-mode (p5-get *S-C-R-E-E-N)))
-	       (p5 (text-align (p5-get *C-E-N-T-E-R)))
-	       (p5 (fill 0))
-	       (p5 (text (p5-get bukvonesis-letter) (/ (p5-get width) 2) (/ (p5-get height) 2) 0)))
-
-	     ;;draw generated coords
-	     (when (p5-get bukvonesis-coords-array)
-	       (p5 (no-fill))
-	       (p5 (stroke 255 0 0))
-
-	       (p5 (translate (/ (p5-get width) 2) (/ (p5-get height) 2) 0))
-	       (p5 (scale 1 -1))
-
-	       (p5 (scale 0.3))
-	       (loop for segment across (p5-get bukvonesis-coords-array)
-		  do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
-			    ;;add straight line
-			    (p5 (line (aref segment 0) (aref segment 1) 0
-				      (aref segment 4) (aref segment 5) 0)))
-			   (T
-			    ;;add curve
-			    (let ((cubic (to-cubic segment)))
-			      (p5 (bezier (aref cubic 0) (aref cubic 1) 0
-					  (aref cubic 2) (aref cubic 3) 0
-					  (aref cubic 4) (aref cubic 5) 0
-					  (aref cubic 6) (aref cubic 7) 0))))))))))
 
 ;;main
-(defvar processing nil)
-
 ($$ (document ready)
     ;; setup processing.js
-    (setf processing (new (*Processing "bukvonesis" font-app)))
+    (setf paper (new (*Raphael "bukvonesis" 1140 715)))
 
     ;; setup websockets
     (setf ws-client (init-ws))
