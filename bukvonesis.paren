@@ -52,23 +52,6 @@
   (draw-letter bukvonesis-letter)
   (send-letter (@ event which)))
 
-;;Convert a quadratic bezier curve to cubic
-(defun to-cubic (curve)
-  (let ((cubic (make-array 8)))
-    ;;start x, start y
-    (setf (aref cubic 0) (aref curve 0))
-    (setf (aref cubic 1) (aref curve 1))
-    ;;control x1, control y1
-    (setf (aref cubic 2) (+ (aref curve 0) (* (/ 2.0 3.0) (- (aref curve 2) (aref curve 0)))))
-    (setf (aref cubic 3) (+ (aref curve 1) (* (/ 2.0 3.0) (- (aref curve 3) (aref curve 1)))))
-    ;control x2, control y2
-    (setf (aref cubic 4) (+ (aref curve 4) (* (/ 2.0 3.0) (- (aref curve 2) (aref curve 4)))))
-    (setf (aref cubic 5) (+ (aref curve 5) (* (/ 2.0 3.0) (- (aref curve 3) (aref curve 5)))))
-    ;end x, end y
-    (setf (aref cubic 6) (aref curve 4))
-    (setf (aref cubic 7) (aref curve 5)))
-  cubic)
-
 ;;websockets
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
@@ -90,16 +73,20 @@
   (loop for segment across coords-array
      do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
 	       ;;add straight line
-	       (chain paper (path (+ "M" (aref segment 0) " " (aref segment 1)
-				     "L" (aref segment 4) " " (aref segment 5)))
-		      (transform "S0.5,2,150,200"))))))
-	      ;; (T
-	      ;;  ;;add curve
-	      ;;  (let ((cubic (to-cubic segment)))
-	      ;; 	 (p5 (bezier (aref cubic 0) (aref cubic 1) 0
-	      ;; 		     (aref cubic 2) (aref cubic 3) 0
-	      ;; 		     (aref cubic 4) (aref cubic 5) 0
-	      ;; 		     (aref cubic 6) (aref cubic 7) 0)))))))
+	       (chain paper
+		      (path (+ "M" (aref segment 0) " " (aref segment 1)
+			       "L" (aref segment 4) " " (aref segment 5)))
+		      (attr (create "stroke" "red"))
+		      (transform "S0.2,-0.2,570,362.5")))
+	      (T
+	       ;;add curve
+	       (chain paper
+		      (path (+ "M" (aref segment 0) "," (aref segment 1) " "
+			       "C" (aref segment 0) "," (aref segment 1) " "
+			       (aref segment 2) "," (aref segment 3) " "
+			       (aref segment 4) "," (aref segment 5)))
+		      (attr (create "stroke" "red"))
+		      (transform "S0.2,-0.2,570,362.5"))))))
 
 
 ;;main
