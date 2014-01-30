@@ -62,12 +62,13 @@
 	(max-generations 400)
 	(mutation-probability 0.1)
 	(max-coordinate-value (get-max-coords-value start end))
+	(min-coordinate-value (get-min-coords-value start end))
 	(straight-line-probability (if control 0.0 1.0))
 	(best-candidate)
 	(best-score))
 
     ;; initialization
-    (setf population (initialize-population population-size max-coordinate-value straight-line-probability))
+    (setf population (initialize-population population-size min-coordinate-value max-coordinate-value straight-line-probability))
 
     (loop repeat max-generations
        ;; evaluation
@@ -122,9 +123,9 @@
 	     collect (receive-result channel)))))
 
 ;;;; genetic operations
-(defun initialize-population (population-size max-coordinate-value straight-line-probability)
+(defun initialize-population (population-size min-coordinate-value max-coordinate-value straight-line-probability)
   (loop repeat population-size
-     collect (make-chromosome max-coordinate-value straight-line-probability)))
+     collect (make-chromosome min-coordinate-value max-coordinate-value straight-line-probability)))
 
 (defun evaluate (candidate start control end)
   ;;TODO do not hard code max-value
@@ -156,17 +157,17 @@
 ;	    (setf (ldb (byte 1 i) (car chromosome-place))
 ;		  (lognot (ldb (byte 1 i) chromosome)))))
 ;    (car chromosome-place))
-chromosome
+  chromosome
 )
 
 ;;;; helpers
-(defun make-chromosome (range straight-prob)
+(defun make-chromosome (min-value max-value straight-prob)
   (loop for k below (* 3 2)
      collect (cond ((and (or (= k 2) (= k 3))
 			 (<= (random 1.0) straight-prob))
 		    0)
 		   (T
-		    (* (random 1.0) range)))))
+		    (random-range min-value max-value)))))
 
 (defun coords-distance (candidate start ctrl end)
   (let ((score 0))
@@ -201,3 +202,15 @@ chromosome
 (defun get-max-coords-value (start end)
   (float (max (zpb-ttf:x start) (zpb-ttf:y start)
 	      (zpb-ttf:x end) (zpb-ttf:y end))))
+
+(defun get-min-coords-value (start end)
+  (float (min (zpb-ttf:x start) (zpb-ttf:y start)
+	      (zpb-ttf:x end) (zpb-ttf:y end))))
+
+(defun random-range (x y)
+  (when (> x y)
+    (rotatef x y))
+  (let ((range (- y x)))
+    (when (rationalp range)
+      (setf range (coerce range 'float)))
+    (+ x (random range ))))
