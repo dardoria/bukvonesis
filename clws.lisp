@@ -29,7 +29,7 @@
 
 (defun send-result (client result)
   (write-to-client-text client (with-output-to-string (response)
-				 (yason:encode result response))))
+				 (yason:encode-alist result response))))
 
 (defmethod resource-received-binary((res bukvonesis-resource) client message)
   (format t "got binary frame ~s from client ~s" (length message) client)

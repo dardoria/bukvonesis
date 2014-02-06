@@ -23,7 +23,8 @@
   (format t "~a" result)
   (setf (slot-value app 'result) result)
   (when (functionp (on-finish app))
-    (funcall (on-finish app) (result app)))
+    (let ((result-list (acons "units-per-em" (zpb-ttf:units/em (font-loader app)) '())))
+      (funcall (on-finish app) (acons "result" (result app) result-list))))
 
   (zpb-ttf:close-font-loader (font-loader app))
   (kill-tasks :default))

@@ -3,6 +3,7 @@
 (defvar paper nil)
 
 (defvar bukvonesis-coords-array nil)
+(defvar bukvonesis-units-per-em nil)
 (defvar bukvonesis-font-name nil)
 (defvar bukvonesis-letter nil)
 
@@ -48,15 +49,16 @@
 (defun on-key-pressed (event)
   ;;todo unbind event handler
   (chain (@ ($ "#mainMenu")) (empty))
-  (setf bukvonesis-letter (chain *string (from-char-code (@ event which))))
-  (draw-letter bukvonesis-letter)
+  (draw-letter (chain *string (from-char-code (@ event which))))
   (send-letter (@ event which)))
 
 ;;websockets
 (defun init-ws ()
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
     (setf (@ ws onmessage) (lambda (event)
-			     (setf bukvonesis-coords-array (chain *j-s-o-n (parse (@ event data)))) ;;todo do I need bukvonesis-coords-array???
+			     (let ((result (chain *j-s-o-n (parse (@ event data)))))
+			       (setf bukvonesis-coords-array (@ result "result"))
+			       (setf bukvonesis-units-per-em (@ result "units-per-em")))
 			     (draw-coords bukvonesis-coords-array)))
     ws))
 
@@ -65,30 +67,37 @@
 
 ;;raphael
 (defun draw-letter (letter)
-  (chain paper (text (/ (@ paper width) 2) (/ (@ paper height) 2) letter) (attr (create "font-family" (+ "'" bukvonesis-font-name "'")
-											"font-size" 400))))
+  (setf bukvonesis-letter (chain paper (text (/ (@ paper width) 2) (/ (@ paper height) 2) letter)
+				 (attr (create "font-family" (+ "'" bukvonesis-font-name "'")
+					       "font-size" 400
+					       "fill" "grey")))))
 
 (defun draw-coords (coords-array)
   (console.log "tadam")
-  (loop for segment across coords-array
-     do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
-	       ;;add straight line
-	       (chain paper
-		      (path (+ "M" (aref segment 0) " " (aref segment 1)
-			       "L" (aref segment 4) " " (aref segment 5)))
-		      (attr (create "stroke" "red"))
-		      (transform "S0.2,-0.2,570,362.5")))
-	      (T
-	       ;;add curve
-	       (chain paper
-		      (path (+ "M" (aref segment 0) "," (aref segment 1) " "
-			       "C" (aref segment 0) "," (aref segment 1) " "
-			       (aref segment 2) "," (aref segment 3) " "
-			       (aref segment 4) "," (aref segment 5)))
-		      (attr (create "stroke" "red"))
-		      (transform "S0.2,-0.2,570,362.5"))))))
+
+  (let* ((letter-box (chain bukvonesis-letter (get-b-box)))
+	 (scale (/ 400 bukvonesis-units-per-em))
+	 (transform (+ "S" scale "," (* -1 scale) ",570,362.5")))
+    (chain paper (rect (@ letter-box x) (@ letter-box y) (@ letter-box width) (@ letter-box height)))
 
 
+    (loop for segment across coords-array
+       do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
+		 ;;add straight line
+		 (chain paper
+			(path (+ "M" (aref segment 0) " " (aref segment 1)
+				 "L" (aref segment 4) " " (aref segment 5)))
+			(attr (create "stroke" "red"))
+			(transform transform)))
+		(T
+		 ;;add curve
+		 (chain paper
+			(path (+ "M" (aref segment 0) "," (aref segment 1) " "
+				 "C" (aref segment 0) "," (aref segment 1) " "
+				 (aref segment 2) "," (aref segment 3) " "
+				 (aref segment 4) "," (aref segment 5)))
+			(attr (create "stroke" "red"))
+			(transform transform)))))))
 ;;main
 ($$ (document ready)
     ;; setup processing.js
