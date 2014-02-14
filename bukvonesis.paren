@@ -4,8 +4,13 @@
 
 (defvar bukvonesis-coords-array nil)
 (defvar bukvonesis-units-per-em nil)
+(defvar bukvonesis-descender 0)
 (defvar bukvonesis-font-name nil)
 (defvar bukvonesis-letter nil)
+(defvar bukvonesis-font-size 100)
+(defvar bukvonesis-gen-size (* bukvonesis-font-size 3))
+(defvar bukvonesis-bounding-box nil)
+(defvar bukvonesus-left-side-bearing nil)
 
 (defvar ws-client nil)
 
@@ -58,8 +63,12 @@
     (setf (@ ws onmessage) (lambda (event)
 			     (let ((result (chain *j-s-o-n (parse (@ event data)))))
 			       (setf bukvonesis-coords-array (@ result "result"))
-			       (setf bukvonesis-units-per-em (@ result "units-per-em")))
-			     (draw-coords bukvonesis-coords-array)))
+			       (setf bukvonesis-units-per-em (@ result "units-per-em"))
+			       (setf bukvonesis-descender (@ result "descender"))
+			       (setf bukvonesis-bounding-box (@ result "bounding-box"))
+			       (setf bukvonesis-left-side-bearing (@ result "left-side-bearing"))
+
+			       (draw-coords bukvonesis-coords-array))))
     ws))
 
 (defun send-letter (letter-code)
@@ -68,18 +77,39 @@
 ;;raphael
 (defun draw-letter (letter)
   (setf bukvonesis-letter (chain paper (text (/ (@ paper width) 2) (/ (@ paper height) 2) letter)
-				 (attr (create "font-family" (+ "'" bukvonesis-font-name "'")
-					       "font-size" 400
-					       "fill" "grey")))))
+   				 (attr (create "font-family" (+ "'" bukvonesis-font-name "'")
+   					       "font-size" bukvonesis-font-size
+   					       "fill" "grey"
+					       "text_anchor" "start")))))
 
 (defun draw-coords (coords-array)
   (console.log "tadam")
 
   (let* ((letter-box (chain bukvonesis-letter (get-b-box)))
-	 (scale (/ 400 bukvonesis-units-per-em))
-	 (transform (+ "S" scale "," (* -1 scale) ",570,362.5")))
-    (chain paper (rect (@ letter-box x) (@ letter-box y) (@ letter-box width) (@ letter-box height)))
+	 (scale (/ bukvonesis-gen-size bukvonesis-units-per-em))
+ 	 (x-pos (- (@ letter-box x2) (* scale (aref bukvonesis-bounding-box 0))))
+ 	 (y-pos (+ (@ letter-box y2)
+ 	  	   (/ (* (- (abs (aref bukvonesis-bounding-box 3))
+ 	  		    (abs (aref bukvonesis-bounding-box 1)))
+ 	  		 scale)
+ 	  	      2)))
+	 (x-pos1 0)
+	 (y-pos1 0)
 
+	 (transform (+ "S" scale "," (* -1 scale) ",0,0" "T" x-pos "," y-pos)))
+    (console.log letter-box)
+    (console.log scale)
+    (console.log x-pos)
+    (console.log y-pos)
+    (console.log bukvonesis-bounding-box)
+    (console.log bukvonesis-left-side-bearing)
+    (chain paper (rect (@ letter-box x) (@ letter-box y) (@ letter-box width) (@ letter-box height)))
+    (chain paper
+	   (rect (aref bukvonesis-bounding-box 0)
+		 (aref bukvonesis-bounding-box 1)
+		 (aref bukvonesis-bounding-box 2)
+		 (aref bukvonesis-bounding-box 3))
+	   (transform transform))
 
     (loop for segment across coords-array
        do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
@@ -88,19 +118,21 @@
 			(path (+ "M" (aref segment 0) " " (aref segment 1)
 				 "L" (aref segment 4) " " (aref segment 5)))
 			(attr (create "stroke" "red"))
-			(transform transform)))
+			(transform transform)
+			))
 		(T
 		 ;;add curve
 		 (chain paper
-			(path (+ "M" (aref segment 0) "," (aref segment 1) " "
-				 "C" (aref segment 0) "," (aref segment 1) " "
-				 (aref segment 2) "," (aref segment 3) " "
-				 (aref segment 4) "," (aref segment 5)))
+			(path (+ "M" (aref segment 0) " " (aref segment 1) " "
+				 "C" (aref segment 0) " " (aref segment 1) " "
+				 (aref segment 2) " " (aref segment 3) " "
+				 (aref segment 4) " " (aref segment 5)))
 			(attr (create "stroke" "red"))
-			(transform transform)))))))
+			(transform transform)
+			))))))
 ;;main
 ($$ (document ready)
-    ;; setup processing.js
+    ;; setup raphael.js
     (setf paper (new (*Raphael "bukvonesis" 1140 715)))
 
     ;; setup websockets

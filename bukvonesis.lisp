@@ -23,7 +23,11 @@
   (format t "~a" result)
   (setf (slot-value app 'result) result)
   (when (functionp (on-finish app))
-    (let ((result-list (acons "units-per-em" (zpb-ttf:units/em (font-loader app)) '())))
+    ;todo don't use alist
+    (let ((result-list (acons "units-per-em" (zpb-ttf:units/em (font-loader app))
+			      (acons "descender" (zpb-ttf:descender (font-loader app))
+				     (acons "left-side-bearing" (zpb-ttf:left-side-bearing (glyph app))
+					    (acons "bounding-box" (zpb-ttf:bounding-box (glyph app)) '()))))))
       (funcall (on-finish app) (acons "result" (result app) result-list))))
 
   (zpb-ttf:close-font-loader (font-loader app))
