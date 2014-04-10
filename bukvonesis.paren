@@ -2,15 +2,13 @@
 
 (defvar paper nil)
 
-(defvar bukvonesis-coords-array nil)
+(defvar bukvonesis-coords-array (array))
 (defvar bukvonesis-units-per-em nil)
-(defvar bukvonesis-descender 0)
 (defvar bukvonesis-font-name nil)
 (defvar bukvonesis-letter nil)
 (defvar bukvonesis-font-size 100)
 (defvar bukvonesis-gen-size (* bukvonesis-font-size 3))
 (defvar bukvonesis-bounding-box nil)
-(defvar bukvonesus-left-side-bearing nil)
 
 (defvar ws-client nil)
 
@@ -62,11 +60,9 @@
   (let ((ws (new (*web-socket "ws://localhost:12345/bukvonesis"))))
     (setf (@ ws onmessage) (lambda (event)
 			     (let ((result (chain *j-s-o-n (parse (@ event data)))))
-			       (setf bukvonesis-coords-array (@ result "result"))
+			       (chain bukvonesis-coords-array (push (@ result "result")))
 			       (setf bukvonesis-units-per-em (@ result "units-per-em"))
-			       (setf bukvonesis-descender (@ result "descender"))
 			       (setf bukvonesis-bounding-box (@ result "bounding-box"))
-			       (setf bukvonesis-left-side-bearing (@ result "left-side-bearing"))
 
 			       (draw-coords bukvonesis-coords-array))))
     ws))
@@ -84,34 +80,15 @@
 
 (defun draw-coords (coords-array)
   (console.log "tadam")
-
+  (chain paper (clear))
   (let* ((letter-box (chain bukvonesis-letter (get-b-box)))
 	 (scale (/ bukvonesis-gen-size bukvonesis-units-per-em))
  	 (x-pos (- (@ letter-box x2) (* scale (aref bukvonesis-bounding-box 0))))
- 	 (y-pos (+ (@ letter-box y2)
- 	  	   (/ (* (- (abs (aref bukvonesis-bounding-box 3))
- 	  		    (abs (aref bukvonesis-bounding-box 1)))
- 	  		 scale)
- 	  	      2)))
-	 (x-pos1 0)
-	 (y-pos1 0)
-
+ 	 (y-pos (+ (@ letter-box y) (* scale (aref bukvonesis-bounding-box 3))))
 	 (transform (+ "S" scale "," (* -1 scale) ",0,0" "T" x-pos "," y-pos)))
-    (console.log letter-box)
-    (console.log scale)
-    (console.log x-pos)
-    (console.log y-pos)
-    (console.log bukvonesis-bounding-box)
-    (console.log bukvonesis-left-side-bearing)
-    (chain paper (rect (@ letter-box x) (@ letter-box y) (@ letter-box width) (@ letter-box height)))
-    (chain paper
-	   (rect (aref bukvonesis-bounding-box 0)
-		 (aref bukvonesis-bounding-box 1)
-		 (aref bukvonesis-bounding-box 2)
-		 (aref bukvonesis-bounding-box 3))
-	   (transform transform))
 
-    (loop for segment across coords-array
+    ;; draw first version
+    (loop for segment across (aref coords-array 0)
        do (cond ((and (= (aref segment 2) 0) (= (aref segment 3) 0))
 		 ;;add straight line
 		 (chain paper

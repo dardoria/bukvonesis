@@ -23,8 +23,8 @@
       (let ((app (make-font-app  (code-char letter-code) font-path)))
 	(setf (on-finish app) (lambda (result)
 				(send-result client result)))
-;	(setf (on-progress app) (lambda (result)
-;				  (send-result client result)))
+	(setf (on-progress app) (lambda (result)
+				  (send-result client result)))
 	(font-app-start app)))))
 
 (defun send-result (client result)

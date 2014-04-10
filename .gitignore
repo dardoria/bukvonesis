@@ -3,7 +3,6 @@
 .sass-cache/*
 css/*
 fonts/*
-js/*
 tmp/*
 /sass/ie.sass
 /sass/print.sass

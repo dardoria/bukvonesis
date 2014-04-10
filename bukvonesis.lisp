@@ -22,18 +22,14 @@
 (defun (setf result) (result app)
   (format t "~a" result)
   (setf (slot-value app 'result) result)
+
   (when (functionp (on-finish app))
-    ;todo don't use alist
-    (let ((result-list (acons "units-per-em" (zpb-ttf:units/em (font-loader app))
-			      (acons "descender" (zpb-ttf:descender (font-loader app))
-				     (acons "left-side-bearing" (zpb-ttf:left-side-bearing (glyph app))
-					    (acons "bounding-box" (zpb-ttf:bounding-box (glyph app)) '()))))))
-      (funcall (on-finish app) (acons "result" (result app) result-list))))
+    (funcall (on-finish app) (make-result app result)))
 
   (zpb-ttf:close-font-loader (font-loader app))
   (kill-tasks :default))
 
-(Defun make-font-app (letter font-path)
+(defun make-font-app (letter font-path)
   (let ((app (make-instance 'font-app)))
     (setf (font-loader app) (zpb-ttf:open-font-loader font-path))
     (setf (bukva app) letter)
@@ -60,7 +56,7 @@
     (future (report-progress app segments-count))
     (future (collect-results app control-queue channel segments-count))))
 
-(defun evolve-curve (start control end message-queue control-queue)
+(defun evolve-curve (start control end progress-queue control-queue)
   (let ((population '())
 	(scores '())
 	(population-size 350)
@@ -70,7 +66,9 @@
 	(min-coordinate-value (get-min-coords-value start end))
 	(straight-line-probability (if control 0.0 1.0))
 	(best-candidate)
-	(best-score))
+	(best-score)
+	(progress-interval 50)
+	(progress-counter 0))
 
     ;; initialization
     (setf population (initialize-population population-size min-coordinate-value max-coordinate-value straight-line-probability))
@@ -90,7 +88,11 @@
 	    (when (= score 0) ;;Yay we found the perfect match ;;TODO relax this
  	      (return))
 
-	    (push-queue best-candidate message-queue))
+	    ;; report progress
+	    (incf progress-counter)
+	    (when (= progress-counter progress-interval)
+	      (push-queue best-candidate progress-queue)
+	      (setf progress-counter 0)))
 
        ;; selection
        do (let ((total-score (float (reduce '+ scores))))
@@ -108,14 +110,15 @@
   (let ((finished-tasks-count 0))
     (loop
        with result = nil
+       with result-list = nil
        do (setf result (try-pop-queue (progress-queue app)))
        do (incf finished-tasks-count)
-       while result
-       collect result into result-list
+       while (and result (not (result app)))
+       do (setf result-list (push result result-list))
        do (when (and (= (mod finished-tasks-count segments-count) 0)
 		     (functionp (on-progress app)))
-	    (funcall (on-progress app) result-list))
-       do (setf result-list nil))))
+	    (funcall (on-progress app) (make-result app result-list))
+	    (setf result-list nil)))))
 
 (defun collect-results (app control-queue channel segments-count)
   (let ((finished-tasks-count 0))
@@ -126,6 +129,12 @@
     (setf (result app)
 	  (loop repeat finished-tasks-count
 	     collect (receive-result channel)))))
+
+(defun make-result (app result)
+  ;;todo don't use alist
+  (acons "result" result
+	 (acons "units-per-em" (zpb-ttf:units/em (font-loader app))
+		(acons "bounding-box" (zpb-ttf:bounding-box (glyph app)) '()))))
 
 ;;;; genetic operations
 (defun initialize-population (population-size min-coordinate-value max-coordinate-value straight-line-probability)
