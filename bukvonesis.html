@@ -3,28 +3,25 @@
   <head>
     <title>Bukvonesis</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css" />
-    <link href="/css/print.css" media="print" rel="stylesheet" type="text/css" />
-    <!--[if IE]>
-	<link href="/css/ie.css" media="screen, projection" rel="stylesheet" type="text/css" />
-	<![endif]-->
-
-    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="css/bukvonesis.css" rel="stylesheet" media="screen">
-
     <script type="text/javascript" src="//code.jquery.com/jquery.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/raphael.js"></script>
-
+    <script type="text/javascript" src="js/paper.js"></script>
     <script type="text/javascript" src="js/devonshire.js"></script>
     <script type="text/javascript" src="js/animate.js"></script>
+
+    <!-- Note: All core TweenJS classes are listed here: -->
+    <script type="text/javascript" src="js/tweenjs/src/createjs/events/Event.js"></script>
+    <script type="text/javascript" src="js/tweenjs/src/createjs/events/EventDispatcher.js"></script>
+
+    <!-- Ticker is the only required EaselJS class -->
+    <script type="text/javascript" src="js/easeljs/src/easeljs/utils/Ticker.js"></script>
+
+    <script type="text/javascript" src="js/tweenjs/src/tweenjs/Tween.js"></script>
+    <script type="text/javascript" src="js/tweenjs/src/tweenjs/Ease.js"></script>
+
+
     <link href='http://fonts.googleapis.com/css?family=Devonshire' rel='stylesheet' type='text/css'>
   </head>
   <body>
-    <div class="container">
-      <div id="bukvonesis" class="platno"></div>
-    </div>
+    <canvas id="bukvonesis" resize></canvas>
   </body>
 </html>

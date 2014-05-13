@@ -7,3 +7,5 @@ tmp/*
 /sass/ie.sass
 /sass/print.sass
 /sass/screen.sass
+/js/easeljs
+/js/tweenjs
