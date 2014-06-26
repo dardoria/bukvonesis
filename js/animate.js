@@ -1,78 +1,125 @@
+var scale = 0.12;
+var xScale = scale;
+var yScale = -1 * scale;
+var xOffset = 600 * scale;
+var yOffset = 1000 * scale;
+var delay = 1000;
+
+
 $(function() {
   var canvas = document.getElementById('bukvonesis');
   paper.setup(canvas);
-
-  //animateSingleLetter('n');
+  //animateSingleLetter('a');
   animateAllLetters();
+
   var update = function() {
     paper.view.draw();
   };
 
-  createjs.Ticker.setFPS(10);
+  createjs.Ticker.setFPS(20);
   createjs.Ticker.addEventListener('tick', update);
 });
 
-function makePath(generation, offset) {
+function makePath(generation, x_offset, y_offset) {
   var letterPath = new paper.CompoundPath();
 
   $.each(generation, function(index, coords) {
     var path = new paper.Path();
 
     if (coords.length == 6) {
-      path.add(new paper.Point(coords[0], coords[1]));
-      path.quadraticCurveTo(new paper.Point(coords[2], coords[3]),
-			    new paper.Point(coords[4], coords[5]));
+      path.add(new paper.Point(scaleX(coords[0]) + x_offset, scaleY(coords[1]) + y_offset));
+      path.quadraticCurveTo(new paper.Point(scaleX(coords[2]) + x_offset, scaleY(coords[3]) + y_offset),
+			    new paper.Point(scaleX(coords[4]) + x_offset, scaleY(coords[5]) + y_offset));
     } else {
-      path.add(new paper.Point(coords[0], coords[1]),
-	       new paper.Point(coords[2], coords[3]));
+      path.add(new paper.Point(scaleX(coords[0]) + x_offset, scaleY(coords[1]) + y_offset),
+	       new paper.Point(scaleX(coords[2]) + x_offset), scaleY(coords[3]) + y_offset);
     }
-    path.position.x += offset;
     letterPath.addChild(path);
   });
 
   letterPath.strokeColor = 'black';
+
   return letterPath;
 }
 
-function animate(letterPath, generations, offset) {
-   $.each(letterPath.children, function(child_index, child) {
-     $.each(child.segments, function(segment_index, segment) {
-       var pathTween = createjs.Tween.get(segment.point, {loop:true});
-       $.each(generations, function(generation_index, generation) {
-	 $.each(generation, function(coords_index, coords) {
-	   if (child_index == coords_index) {
-	       if (coords.length == 6) {
-		 if (segment_index == 0) {
-		   pathTween.to({x: coords[0] + offset, y: coords[1]},
-				1000, createjs.Ease.quadOut);
-		   } else {
-		   pathTween.to({x: coords[4] + offset, y: coords[5]},
-				1000, createjs.Ease.quadOut);
-		   }
-	       } else {
-		 pathTween.to({x: coords[segment_index + 0] + offset, y: coords[segment_index + 1]},
-			      1000, createjs.Ease.quadOut);
-	       }
-	     }
-	 });
-       });
-       pathTween.wait(1500);
-     });
-   });
+function animate(letterPath, generations, x_offset, y_offset) {
+  var children_length = letterPath.children.length;
+
+  for (var child_index = 0; child_index < children_length; child_index++) {
+    var child = letterPath.children[child_index];
+
+    var segments_length = child.segments.length;
+    for (var segment_index = 0; segment_index < segments_length; segment_index++) {
+      var segment = child.segments[segment_index];
+      var pathTween = createjs.Tween.get(segment.point, {loop:true});
+
+      var generations_length = generations.length;
+      for (var generation_index = 0; generation_index < generations_length; generation_index++) {
+
+        var generation = generations[generation_index];
+        var generation_length = generation.length;
+
+        var coords = generation[child_index];
+
+	if (coords.length == 6) { //curve
+	  if (segment_index == 0) {
+	    pathTween.to({ x: scaleX(coords[0]) + x_offset,
+			   y: scaleY(coords[1]) + y_offset},
+			 delay, createjs.Ease.quadOut);
+	  } else {
+	    pathTween.to({x: scaleX(coords[4]) + x_offset,
+			  y: scaleY(coords[5]) + y_offset},
+			 delay, createjs.Ease.quadOut);
+	  }
+	} else { //straight line
+	  if (segment_index == 0) {
+	    pathTween.to({x: scaleX(coords[0]) + x_offset,
+			  y: scaleY(coords[1]) + y_offset},
+			 delay, createjs.Ease.quadOut);
+	  } else {
+	    pathTween.to({x: scaleX(coords[2]) + x_offset,
+			  y: scaleY(coords[3]) + y_offset},
+			 delay, createjs.Ease.quadOut);
+	  }
+	}
+      }
+      pathTween.wait(3500);
+    }
+  }
 }
 
 function animateSingleLetter(letter) {
   var generations = devonshire[letter];
   var letterPath = makePath(generations[0], 0);
-  animate(letterPath, generations.slice(1));
+  animate(letterPath, generations, 0);
+  return letterPath;
 }
 
 function animateAllLetters() {
-  var offset = 0;
+  var x_offset = 0;
+  var y_offset = 0;
+  var letter_index = 0;
+  var letters_per_row = 7;
+  var row = 1;
+  var y_space = 90;
 
   $.each(devonshire, function(letter, generations) {
-     var letterPath = makePath(generations[0], offset);
-     animate(letterPath, generations.slice(1), offset);
-     offset += 300;
+    y_offset = yOffset * row;
+    var letterPath = makePath(generations.slice(-1)[0], x_offset, y_offset);
+    animate(letterPath, generations.slice(1), x_offset, y_offset);
+    x_offset += xOffset;
+    letter_index++;
+    if (letter_index % letters_per_row == 0) {
+      row++;
+      x_offset = 0;
+    }
    });
+}
+
+function scaleX(coords) {
+  return coords * xScale;
+}
+
+function scaleY(coords) {
+  return coords * yScale;
 }

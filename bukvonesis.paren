@@ -80,7 +80,7 @@
 
 (defun draw-coords (coords-array)
   (console.log "tadam")
-  (chain paper (clear))
+  ;(chain paper (clear))
   (let* ((letter-box (chain bukvonesis-letter (get-b-box)))
 	 (scale (/ bukvonesis-gen-size bukvonesis-units-per-em))
  	 (x-pos (- (@ letter-box x2) (* scale (aref bukvonesis-bounding-box 0))))
